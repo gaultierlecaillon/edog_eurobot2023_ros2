@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'led_pkg'
+package_name = 'hardware_package'
 
 setup(
     name=package_name,
@@ -14,13 +14,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='edog',
-    maintainer_email='edog@todo.todo',
+    maintainer_email='gaultier.lecail@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "py_node = led_pkg.eyes_node:main"
+            "reset1_publisher = hardware_package.reset1_publisher:main"
         ],
     },
 )
