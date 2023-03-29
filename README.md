@@ -8,6 +8,11 @@ Build a specific package
 colcon build --packages-select hardware_package
 ```
 
+Build a specific package with symlink
+```shell
+colcon build --packages-select hardware_package --symlink-install
+```
+
 
 Create a Node
 

@@ -20,7 +20,7 @@ class Reset1Publisher(Node):
         GPIO.setup(self.tiretteGPIO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
         # Publisher
-        self.publisher = self.create_publisher(String, "reset1_state", 10)
+        self.publisher = self.create_publisher(String, "reset1_topic", 10)
 
         # end
         self.get_logger().info("Node reset1_publisher starting")

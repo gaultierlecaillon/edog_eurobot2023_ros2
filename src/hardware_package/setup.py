@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "reset1_publisher = hardware_package.reset1_publisher:main"
+            "reset1_publisher = hardware_package.reset1_publisher:main",
+            "lidar_publisher = hardware_package.lidar_publisher:main"
         ],
     },
 )
