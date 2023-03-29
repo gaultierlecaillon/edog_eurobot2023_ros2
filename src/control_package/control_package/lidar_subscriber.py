@@ -16,6 +16,9 @@ from rclpy.executors import MultiThreadedExecutor
 class LidarSubscriber(Node):
     def __init__(self, max_distance, min_distance):
         super().__init__('lidar_subscriber')
+        # Publish filtered ranges
+        self.publisher_ = self.create_publisher(LaserScan, "filtered_scan_topic", 10)
+
         self.subscription = self.create_subscription(LaserScan, 'scan', self.scan_callback, 10)
         self.max_distance = max_distance
         self.min_distance = min_distance
@@ -28,8 +31,6 @@ class LidarSubscriber(Node):
         filtered_ranges = [min(r, self.max_distance) for r in ranges_list]
         filtered_ranges = [max(r, self.min_distance) for r in filtered_ranges]
 
-        # Publish filtered ranges
-        self.publisher_ = self.create_publisher(LaserScan, "filtered_scan_topic", 10)
 
         filtered_scan = LaserScan(
             header=msg.header,
@@ -54,7 +55,7 @@ def main(args=None):
     node = LidarSubscriber(max_distance, min_distance)
 
     # Launch RViz2
-    os.system("rviz2 --display-config=resources/lidar.rviz &")
+    os.system("rviz2 --display-config=config.rviz &")
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
