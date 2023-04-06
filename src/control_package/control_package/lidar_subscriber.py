@@ -9,9 +9,15 @@ import math
 import numpy as np
 import os
 
+#Led
+import board
+import neopixel
+from random import randint
+
 from rclpy.qos import QoSProfile
 from rclpy.executors import MultiThreadedExecutor
 
+NUM_PIXEL = 15
 
 class LidarSubscriber(Node):
     def __init__(self, max_distance, min_distance):
@@ -22,6 +28,10 @@ class LidarSubscriber(Node):
         self.subscription = self.create_subscription(LaserScan, 'scan', self.scan_callback, 10)
         self.max_distance = max_distance
         self.min_distance = min_distance
+
+        # Led setup
+        self.pixels = neopixel.NeoPixel(board.D18, NUM_PIXEL)
+
         self.get_logger().info('LidarSubscriber node has started')
 
     def scan_callback(self, msg):
@@ -30,6 +40,11 @@ class LidarSubscriber(Node):
         # Filter ranges based on max_distance
         filtered_ranges = [min(r, self.max_distance) for r in ranges_list]
         filtered_ranges = [max(r, self.min_distance) for r in filtered_ranges]
+
+        for index, value in enumerate(filtered_ranges):
+            if self.min_distance < value < self.max_distance and index == 0:
+                print(len(ranges_list), index, ":", value)
+                self.pixels[7] = (255, 0, 0)  # red
 
 
         filtered_scan = LaserScan(
@@ -55,7 +70,7 @@ def main(args=None):
     node = LidarSubscriber(max_distance, min_distance)
 
     # Launch RViz2
-    os.system("rviz2 --display-config=config.rviz &")
+    #os.system("rviz2 --display-config=config.rviz &")
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
