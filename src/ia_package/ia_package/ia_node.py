@@ -3,6 +3,7 @@ import json
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Bool
+from robot_interfaces.msg import Position
 
 
 class IANode(Node):
@@ -55,9 +56,25 @@ class IANode(Node):
     param: 
     desc: got to (x,y,r) and start to grab the stuff
     '''
-
     def grab(self, param):
-        print("Doing action grab with param:", param)
+        print("TODO Doing action grab with param:", param)
+
+    ''' 
+    name: goto
+    param: 
+    desc: got to (x,y,r)
+    '''
+
+    def goto(self, param):
+        print("Doing action goto with param:", param)
+        coordinate = [int(num) for num in param.split(',')]
+        self.goto_publisher_ = self.create_publisher(Position, "cmd_motion", 10)
+
+        position = Position(
+            x=coordinate[0],
+            y=coordinate[1],
+            r=coordinate[2])
+        self.goto_publisher_.publish(position)
 
     def update_current_action_status(self, status):
         if status == "done":
