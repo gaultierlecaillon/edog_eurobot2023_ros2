@@ -8,7 +8,8 @@
     {
       "name": "Starting Blocks",
       "actions": [
-        { "waiting_tirette": "" }
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {
