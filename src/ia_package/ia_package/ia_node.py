@@ -81,9 +81,13 @@ class IANode(Node):
 
         request = CmdPositionService.Request()
         # todo
-        request.x = 0
-        request.y = 0
-        request.r = 90
+        print("param", param)
+        int_param = [int(x) for x in param.split(",")]
+        print("int_param", int_param)
+
+        request.x = int_param[0]
+        request.y = int_param[1]
+        request.r = int_param[2]
         future = client.call_async(request)
 
         future.add_done_callback(
