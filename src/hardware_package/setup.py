@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             "reset1_publisher = hardware_package.reset1_publisher:main",
-            "lidar_publisher = hardware_package.lidar_publisher:main"
+            "lidar_publisher = hardware_package.lidar_publisher:main",
+            "tirette_publisher = hardware_package.tirette_publisher:main"
         ],
     },
 )

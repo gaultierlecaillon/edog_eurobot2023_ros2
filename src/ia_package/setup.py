@@ -1,8 +1,6 @@
 from setuptools import setup
-from glob import glob
 
-
-package_name = 'control_package'
+package_name = 'ia_package'
 
 setup(
     name=package_name,
@@ -11,7 +9,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml'])
+        ('share/' + package_name, ['package.xml']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -22,8 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'motion_server = control_package.motion_server:main',
-            'lidar_filter = control_package.lidar_filter:main'
+            'ia_node = ia_package.ia_node:main'
         ],
     },
 )
