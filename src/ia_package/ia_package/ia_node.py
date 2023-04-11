@@ -6,6 +6,7 @@ from functools import partial
 from std_msgs.msg import Bool
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
+from robot_interfaces.srv import BoolBool
 
 
 class IANode(Node):
@@ -25,7 +26,7 @@ class IANode(Node):
         self.execute_current_action()
 
     def callback_waiting_tirette(self, msg, param):
-        if msg.data == bool(param):
+        if msg.data == cast_str_bool(param):
             self.update_current_action_status('done')
             self.destroy_subscription(self.subscriber_)  # Unsubscribe from the topic
 
@@ -36,7 +37,8 @@ class IANode(Node):
             self.action_name, self.action_param = list(action.items())[0]
 
             if not self.current_action_already_printed:
-                self.get_logger().info(f"[Current Action] {self.action_name} ({current_action['status']})")
+                self.get_logger().info(
+                    f"[Current Action] {self.action_name} {self.action_param} ({current_action['status']})")
                 self.current_action_already_printed = True
 
             if current_action['status'] == "pending":
@@ -55,25 +57,41 @@ class IANode(Node):
     def grab(self, param):
         self.get_logger().info(f"TODO: Performing grab action with param: {param}")
 
+    def calibrate(self, param):
+        self.get_logger().info(f"[Exec Action] calibrate with param: {param}")
+        client = self.create_client(BoolBool, "cmd_calibration_service")
+        while not client.wait_for_service(0.25):
+            self.get_logger().warn("Waiting for Server to be available...")
+
+        request = BoolBool.Request()
+        request.data = True
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_current_action))
+
+        self.get_logger().info(f"[Publish] {request} to cmd_calibration_service")
+
     def goto(self, param):
         self.get_logger().info(f"[Exec Action] goto with param: {param}")
 
         client = self.create_client(CmdPositionService, "cmd_position_service")
         while not client.wait_for_service(0.25):
-            self.get_logger().warn("Waiting for Server to finish goto...")
+            self.get_logger().warn("Waiting for Server to be available...")
 
         request = CmdPositionService.Request()
+        # todo
         request.x = 0
         request.y = 0
         request.r = 90
         future = client.call_async(request)
 
         future.add_done_callback(
-            partial(self.callback_goto))
+            partial(self.callback_current_action))
 
         self.get_logger().info(f"[Publish] {request} to cmd_position_service")
 
-    def callback_goto(self, future):
+    def callback_current_action(self, future):
         try:
             response = future.result()
             if response.success:
@@ -93,7 +111,6 @@ class IANode(Node):
             self.actions_dict[0]['status'] = status
         self.current_action_already_printed = False
 
-
     def load_strategy_from_file(self):
         with open('/home/edog/ros2_ws/src/ia_package/resource/strat.json') as file:
             config = json.load(file)
@@ -110,12 +127,18 @@ class IANode(Node):
                     }
                 )
 
+
+def cast_str_bool(var):
+    return var == 'True'
+
+
 def main(args=None):
     rclpy.init(args=args)
     ia_node = IANode()
     rclpy.spin(ia_node)
     ia_node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

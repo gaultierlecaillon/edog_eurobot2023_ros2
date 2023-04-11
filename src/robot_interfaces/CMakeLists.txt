@@ -26,6 +26,7 @@ set(msg_files
 
 set(srv_files
   "srv/CmdPositionService.srv"
+  "srv/BoolBool.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

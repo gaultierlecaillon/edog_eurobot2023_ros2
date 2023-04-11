@@ -6,10 +6,10 @@
   "startingPos": "0,0,0",
   "strategy": [
     {
-      "name": "opening",
+      "name": "Init Robot",
       "actions": [
-        { "goto": "0,0,90" },
-        { "goto": "10,10,00" }
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     }
   ]
