@@ -2,8 +2,10 @@
 import json
 import rclpy
 from rclpy.node import Node
+from functools import partial
 from std_msgs.msg import Bool
 from robot_interfaces.msg import Position
+from robot_interfaces.srv import CmdPositionService
 
 
 class IANode(Node):
@@ -56,6 +58,7 @@ class IANode(Node):
     param: 
     desc: got to (x,y,r) and start to grab the stuff
     '''
+
     def grab(self, param):
         print("TODO Doing action grab with param:", param)
 
@@ -67,14 +70,41 @@ class IANode(Node):
 
     def goto(self, param):
         print("Doing action goto with param:", param)
+        '''
         coordinate = [int(num) for num in param.split(',')]
-        self.goto_publisher_ = self.create_publisher(Position, "cmd_motion", 10)
+        self.goto_publisher_ = self.create_publisher(CmdPositionService, "cmd_position_service", 10)
 
         position = Position(
             x=coordinate[0],
             y=coordinate[1],
             r=coordinate[2])
         self.goto_publisher_.publish(position)
+        '''
+        client = self.create_client(CmdPositionService, "cmd_position_service")
+        while not client.wait_for_service(0.25):
+            self.get_logger().warn("Waiting for Server to finsh goto...")
+        request = CmdPositionService.Request()
+        request.x = 0
+        request.y = 0
+        request.r = 90
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_goto))
+
+        print("Publish:", request, "to cmd_position_service")
+
+    def callback_goto(self, future):
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f"Action Done ! {response}")
+                self.update_current_action_status('done')
+            else:
+                self.get_logger().info(f"Something went wrong with response: {response}")
+
+        except Exception as e:
+            self.get_logger().error("Service call failed %r" % (e,))
 
     def update_current_action_status(self, status):
         if status == "done":
@@ -84,7 +114,6 @@ class IANode(Node):
             self.actions_dict[0]['status'] = status
 
     def parse_strat(self):
-        # with open('../resource/strat.json') as file:
         with open('/home/edog/ros2_ws/src/ia_package/resource/strat.json') as file:
             config = json.load(file)
 

@@ -19,8 +19,18 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
+# Add message and service files
+set(msg_files
+  "msg/Position.msg"
+)
+
+set(srv_files
+  "srv/CmdPositionService.srv"
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
-    "msg/Position.msg"
+  ${msg_files}
+  ${srv_files}
 )
 
 if(BUILD_TESTING)

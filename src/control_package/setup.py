@@ -22,7 +22,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'motion_server = control_package.motion_server:main',
+            'motion_service = control_package.motion_service:main',
             'lidar_filter = control_package.lidar_filter:main'
         ],
     },
