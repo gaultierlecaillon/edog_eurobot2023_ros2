@@ -25,11 +25,6 @@ class IANode(Node):
     def master_callback(self):
         self.execute_current_action()
 
-    def callback_waiting_tirette(self, msg, param):
-        if msg.data == cast_str_bool(param):
-            self.update_current_action_status('done')
-            self.destroy_subscription(self.subscriber_)  # Unsubscribe from the topic
-
     def execute_current_action(self):
         if len(self.actions_dict) > 0:
             current_action = self.actions_dict[0]
@@ -43,9 +38,10 @@ class IANode(Node):
 
             if current_action['status'] == "pending":
                 getattr(self, self.action_name)(self.action_param)
-                self.update_current_action_status('ongoing')
+                self.update_current_action_status('on going')
         else:
-            self.get_logger().info(f"[Match done] No more actions to exec)")
+            self.get_logger().info("\033[38;5;208m[Match done] No more actions to exec\n\n\t\t\t (⌐■_■) 𝘪𝘴 𝘪𝘵 𝘗1 ?\033[0m\n")
+
             rclpy.shutdown()
 
     def waiting_tirette(self, param):
@@ -53,6 +49,11 @@ class IANode(Node):
             Bool,
             "tirette_topic",
             lambda msg: self.callback_waiting_tirette(msg, param), 1)
+
+    def callback_waiting_tirette(self, msg, param):
+        if msg.data == cast_str_bool(param):
+            self.update_current_action_status('done')
+            self.destroy_subscription(self.subscriber_)  # Unsubscribe from the topic
 
     def grab(self, param):
         self.get_logger().info(f"TODO: Performing grab action with param: {param}")
@@ -79,12 +80,8 @@ class IANode(Node):
         while not client.wait_for_service(0.25):
             self.get_logger().warn("Waiting for Server to be available...")
 
-        request = CmdPositionService.Request()
-        # todo
-        print("param", param)
         int_param = [int(x) for x in param.split(",")]
-        print("int_param", int_param)
-
+        request = CmdPositionService.Request()
         request.x = int_param[0]
         request.y = int_param[1]
         request.r = int_param[2]

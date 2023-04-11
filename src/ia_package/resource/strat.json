@@ -8,7 +8,9 @@
     {
       "name": "opening",
       "actions": [
-        { "goto": "0,10,0" }
+        { "calibrate": "True" },
+        { "goto": "10,0,0" },
+        { "goto": "0,0,0" }
       ]
     }
   ]
