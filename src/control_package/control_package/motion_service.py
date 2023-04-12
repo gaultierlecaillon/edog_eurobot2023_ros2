@@ -128,27 +128,19 @@ class MotionService(Node):
         return forward, -forward
 
     def motionForward(self, forward_mm, time):
-        number_turn = (40 * forward_mm) / 1300
-        self.get_logger().warn(f"[MotionForward] (forward_mm={forward_mm} mm, number_turn={number_turn} turns)")
-        '''
-        print("Encoder index before moveForward to ", forward_mm, 'mm (number_turn to do:', number_turn, ")")
-        print("Axis 0:", self.getEncoderIndex(self.odrv0.axis0))
-        print("Axis 1:", self.getEncoderIndex(self.odrv0.axis1))
+        min_forward_mm = 10
+        if abs(forward_mm) > min_forward_mm:
+            number_turn = (40 * forward_mm) / 1300
+            self.get_logger().warn(f"[MotionForward] (forward_mm={forward_mm} mm, number_turn={number_turn} turns)")
 
-        print("will move forward of:", number_turn)
-        print("self.encoder_0_index", self.encoder_0_index)
-        print("self.encoder_1_index:", self.encoder_1_index)
-        print("expected.encoder_0_index", number_turn + (self.encoder_0_index/self.cpr))
-        print("expected.encoder_1_index:", number_turn + (self.encoder_1_index/self.cpr))
-        '''
+            self.odrv0.axis0.controller.config.input_filter_bandwidth = time
+            self.odrv0.axis1.controller.config.input_filter_bandwidth = time
 
-        self.odrv0.axis0.controller.config.input_filter_bandwidth = time
-        self.odrv0.axis1.controller.config.input_filter_bandwidth = time
+            self.odrv0.axis0.controller.input_pos = number_turn + (self.encoder_0_index / self.cpr)
+            self.odrv0.axis1.controller.input_pos = number_turn + (self.encoder_1_index / self.cpr)
+        else:
+            self.get_logger().error(f"[MotionForward] Trying to move forward less than {min_forward_mm}mm")
 
-        self.odrv0.axis0.controller.input_pos = number_turn + (self.encoder_0_index / self.cpr)
-        self.odrv0.axis1.controller.input_pos = number_turn + (self.encoder_1_index / self.cpr)
-
-        return
 
     def getEncoderIndex(self, axis):
         return axis.encoder.shadow_count
@@ -179,7 +171,6 @@ class MotionService(Node):
         self.encoder_1_index = self.odrv0.axis1.encoder.shadow_count
 
         self.get_logger().warn(f"Position reached in {round(time.time() - start, 3)} s")
-        time.sleep(1) #todo
 
     def print_robot_infos(self):
         self.get_logger().info(
