@@ -90,6 +90,7 @@ class MotionService(Node):
         forward_axis0_turn, forward_axis1_turn = self.motionRotate(target_angle, 2)
         self.waitForMovementCompletion(forward_axis0_turn, forward_axis1_turn)
         self.r_ = target_angle
+        self.print_robot_infos()
 
         # Then move forward
         self.motionForward(forward_distance, 2)
@@ -97,14 +98,13 @@ class MotionService(Node):
         self.waitForMovementCompletion(number_turn_axis, number_turn_axis)
         self.x_ = request.x
         self.y_ = request.y
+        self.print_robot_infos()
 
         # Finally rotate in the final angle
-        '''
-        rotation_angle_final = target_angle - self.r_
-        rotate_distance = self.motionRotate(rotation_angle_final, 2)
-        self.waitForMovementCompletion(rotation_angle_final)
+        forward_axis0_turn, forward_axis1_turn = self.motionRotate(request.r, 2)
+        self.waitForMovementCompletion(forward_axis0_turn, forward_axis1_turn)
         self.r_ = request.r
-        '''
+        self.print_robot_infos()
 
         response.success = True
         self.get_logger().info(f"request {request}")
@@ -113,19 +113,24 @@ class MotionService(Node):
         return response
 
     def motionRotate(self, target_angle, time):
-        rotation_angle = target_angle - self.r_
-        forward = (33.5 * rotation_angle) / 360  # convert angle to x
+        rotation_todo = target_angle - self.r_
+        forward = (33.5 * rotation_todo) / 360  # convert angle to turns
+
+        self.get_logger().warn(
+            f"[MotionRotate] (target_angle={target_angle}°, rotation_todo={rotation_todo}°, forward={forward} turns)")
+
         self.odrv0.axis0.controller.config.input_filter_bandwidth = time
         self.odrv0.axis1.controller.config.input_filter_bandwidth = time
 
-        self.odrv0.axis0.controller.input_pos = forward
-        self.odrv0.axis1.controller.input_pos = -forward
+        self.odrv0.axis0.controller.input_pos = forward + (self.encoder_0_index / self.cpr)
+        self.odrv0.axis1.controller.input_pos = -forward + (self.encoder_1_index / self.cpr)
 
         return forward, -forward
 
     def motionForward(self, forward_mm, time):
-        #convert distance_mm in number of turn
         number_turn = (40 * forward_mm) / 1300
+        self.get_logger().warn(f"[MotionForward] (forward_mm={forward_mm} mm, number_turn={number_turn} turns)")
+        '''
         print("Encoder index before moveForward to ", forward_mm, 'mm (number_turn to do:', number_turn, ")")
         print("Axis 0:", self.getEncoderIndex(self.odrv0.axis0))
         print("Axis 1:", self.getEncoderIndex(self.odrv0.axis1))
@@ -135,12 +140,13 @@ class MotionService(Node):
         print("self.encoder_1_index:", self.encoder_1_index)
         print("expected.encoder_0_index", number_turn + (self.encoder_0_index/self.cpr))
         print("expected.encoder_1_index:", number_turn + (self.encoder_1_index/self.cpr))
+        '''
 
         self.odrv0.axis0.controller.config.input_filter_bandwidth = time
         self.odrv0.axis1.controller.config.input_filter_bandwidth = time
 
-        self.odrv0.axis0.controller.input_pos = number_turn + (self.encoder_0_index/self.cpr)
-        self.odrv0.axis1.controller.input_pos = number_turn + (self.encoder_1_index/self.cpr)
+        self.odrv0.axis0.controller.input_pos = number_turn + (self.encoder_0_index / self.cpr)
+        self.odrv0.axis1.controller.input_pos = number_turn + (self.encoder_1_index / self.cpr)
 
         return
 
@@ -148,9 +154,12 @@ class MotionService(Node):
         return axis.encoder.shadow_count
 
     def waitForMovementCompletion(self, forward_axis0_turn, forward_axis1_turn):
-        self.get_logger().info(f"[waitForMovementCompletion] (forward_axis0_turn={forward_axis0_turn} and forward_axis1_turn={forward_axis1_turn})")
-        self.get_logger().info(f"[Detail] (encoder_0_index={self.encoder_0_index} and encoder_1_index={self.encoder_1_index})")
-        self.get_logger().info(f"[Detail] (real_0_index={self.odrv0.axis0.encoder.shadow_count} and real_1_index={self.odrv0.axis1.encoder.shadow_count})")
+        self.get_logger().info(
+            f"[waitForMovementCompletion] (forward_axis0_turn={forward_axis0_turn} and forward_axis1_turn={forward_axis1_turn})")
+        self.get_logger().info(
+            f"[Detail] (encoder_0_index={self.encoder_0_index} and encoder_1_index={self.encoder_1_index})")
+        self.get_logger().info(
+            f"[Detail] (real_0_index={self.odrv0.axis0.encoder.shadow_count} and real_1_index={self.odrv0.axis1.encoder.shadow_count})")
         # todo ecart non négligeable entre encoder_0_index et odrv0.axis0.encoder.shadow_count ?
 
         start = time.time()
@@ -159,7 +168,7 @@ class MotionService(Node):
         while delta1 >= self.cpr_error_tolerance or delta2 >= self.cpr_error_tolerance:
             delta1 = abs((forward_axis0_turn * self.cpr + self.encoder_0_index) - self.odrv0.axis0.encoder.shadow_count)
             delta2 = abs((forward_axis1_turn * self.cpr + self.encoder_1_index) - self.odrv0.axis1.encoder.shadow_count)
-            self.get_logger().info(f"delat1={delta1} and delat2={delta2}")
+            print(".", end='')
 
             if time.time() - start > 10:
                 self.get_logger().info(f"waitForMovementCompletion Timeout (delat1={delta1} and delat2={delta2})")
@@ -168,10 +177,13 @@ class MotionService(Node):
 
         self.encoder_0_index = self.odrv0.axis0.encoder.shadow_count
         self.encoder_1_index = self.odrv0.axis1.encoder.shadow_count
-        
-        self.get_logger().info(f"Position reached in {round(time.time() - start, 3)} s")
+
+        self.get_logger().warn(f"Position reached in {round(time.time() - start, 3)} s")
+        time.sleep(1) #todo
+
+    def print_robot_infos(self):
         self.get_logger().info(
-            f"Current Robot pos: x:{self.x_}, y:{self.y_}, r:{self.r_}, encoder_0_index:{self.encoder_0_index}, encoder_1_index:{self.encoder_1_index}")
+            f"[Robot Infos] x:{self.x_}, y:{self.y_}, r:{self.r_}, encoder_0_index:{self.encoder_0_index}(real: {self.getEncoderIndex(self.odrv0.axis0)}) encoder_1_index:{self.encoder_1_index}(real: {self.getEncoderIndex(self.odrv0.axis1)})")
 
 
 def main(args=None):
