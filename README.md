@@ -5,10 +5,10 @@
     <img src="https://i.postimg.cc/BZcpdHgc/table-2023-Feb-25-11-50-22-AM-000-Customized-View5422542567.png" alt="Logo">
   </a>
 
-  <h3 align="center">Raspberry Pi Actuators Toolbox</h3>
+  <h3 align="center">Edog Eurobot 2023 ROS2 packages </h3>
 
   <p align="center">
-    A collection of Python scripts to control various electronic devices through the Raspberry Pi GPIO
+    A collection of ROS2 packages to control the robot Edog 2023
     </p>
 </div>
 
