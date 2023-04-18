@@ -6,11 +6,16 @@
   "startingPos": "0,0,0",
   "strategy": [
     {
+      "name": "Starting Blocks",
+      "actions": [
+        { "calibrate": "True" }
+      ]
+    },
+    {
       "name": "opening",
       "actions": [
-        { "calibrate": "True" },
-        { "goto": "300,200,-1" },
-        { "goto": "100,200,-1" },
+        { "goto": "800,0,-1" },
+        { "goto": "800,-50,-1" },
         { "goto": "0,0,0" }
       ]
     }

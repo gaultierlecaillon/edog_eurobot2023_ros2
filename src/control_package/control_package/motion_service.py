@@ -15,7 +15,7 @@ import math
 
 class MotionService(Node):
     cpr = 8192
-    cpr_error_tolerance = 0.02
+    cpr_error_tolerance = 0.01
 
 
     target_0 = 0
@@ -93,6 +93,9 @@ class MotionService(Node):
         self.print_robot_infos()
 
         # Then move forward
+        if abs(target_angle - self.r_) == 180: #go backward instead of forward
+            increment_mm = -increment_mm
+
         increment_0_pos, increment_1_pos = self.motionForward(increment_mm)
         self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ = request.x
@@ -114,8 +117,11 @@ class MotionService(Node):
 
     def motionRotate(self, target_angle):
         rotation_to_do = target_angle - self.r_
-        if rotation_to_do == 0:
+        if rotation_to_do == 0 or abs(rotation_to_do) == 180:
             return 0, 0
+        elif abs(rotation_to_do) > 180:
+            rotation_to_do = - 360 - rotation_to_do
+
 
         # I know after calibration that 360°=838mm
         increment_mm = rotation_to_do * 838 / 360
