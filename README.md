@@ -1,3 +1,22 @@
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="https://i.postimg.cc/BZcpdHgc/table-2023-Feb-25-11-50-22-AM-000-Customized-View5422542567.png" alt="Logo">
+  </a>
+
+  <h3 align="center">Raspberry Pi Actuators Toolbox</h3>
+
+  <p align="center">
+    A collection of Python scripts to control various electronic devices through the Raspberry Pi GPIO
+    </p>
+</div>
+
+
+## Getting Started
+
+## ROS2 Cheat Sheet
+
 Create a python package
 ```shell
 ros2 pkg create hardware_package --build-type ament_python --dependencies rclpy
