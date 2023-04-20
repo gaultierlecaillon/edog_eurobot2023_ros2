@@ -29,6 +29,8 @@ class MotionService(Node):
         super().__init__("motion_service")
 
         self.odrv0 = None
+        self.loadCalibrationConfig()
+        
         self.calibration_service_ = self.create_service(
             BoolBool,
             "cmd_calibration_service",
@@ -41,18 +43,31 @@ class MotionService(Node):
 
         self.get_logger().info("Motion Service has been started.")
 
+    def loadCalibrationConfig(self):
+        with open('/home/edog/ros2_ws/src/control_package/resource/calibration.json') as file:
+            config = json.load(file)
+        self.get_logger().info(f"[Loading Calibration Config] caibration.json")
+
+        self.calibration_config = config['calibration']
+        print("self.calibration_config", self.calibration_config)
+
     def calibration_callback(self, request, response):
         # Find a connected ODrive (this will block until you connect one)
         self.get_logger().info(f"Finding an odrive...")
         self.odrv0 = odrive.find_any()
         self.get_logger().info(f"OdriveBoard Found ! VBus Voltage: {self.odrv0.vbus_voltage}")
+        self.odrv0.clear_errors()
 
         if self.is_in_closed_loop_control():
+            self.disable_motor_loop_control()
+            # Loop Control
+            self.reset_encoders()
+            self.odrv0.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+            self.odrv0.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+            
             self.get_logger().warn(f"Robot already in closed loop control")
         else:
-            # Calibrate motor and wait for it to finish
-            self.get_logger().info(f"Starting calibration...")
-            self.odrv0.clear_errors()
+            self.get_logger().info(f"Starting calibration...")            
             self.odrv0.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
             self.odrv0.axis1.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
 
@@ -64,13 +79,13 @@ class MotionService(Node):
             self.odrv0.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
             self.odrv0.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
-        self.startFilteredPositionControl()
+        self.setPID()
         self.setPIDGains()
 
         response.success = True
         self.get_logger().info(f"request {request}")
         self.get_logger().info(f"response {response}")
-        time.sleep(1)
+        time.sleep(0.2)
         return response
 
     def position_callback(self, request, response):
@@ -124,8 +139,8 @@ class MotionService(Node):
 
 
         # I know after calibration that 360°=838mm
-        increment_mm = rotation_to_do * 838 / 360
-        increment_pos = 50 / 1265 * increment_mm  # todo
+        increment_mm = rotation_to_do * float(self.calibration_config["rotation"]["coef"])
+        increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm
 
         # Send command to motors
         self.get_logger().warn(f"[MotionRotate] target_angle={target_angle}°, rotation_to_do={rotation_to_do}°")
@@ -137,7 +152,7 @@ class MotionService(Node):
         return increment_pos, -increment_pos
 
     def motionForward(self, increment_mm):
-        increment_pos = 50 / 1265 * increment_mm  # todo
+        increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm  # todo
 
         self.get_logger().warn(f"[MotionForward] (increment_mm={increment_mm} mm, increment_pos={increment_pos} pos)")
 
@@ -183,7 +198,7 @@ class MotionService(Node):
         self.target_1 = self.odrv0.axis1.encoder.pos_estimate
 
     def setPIDGains(self):
-        with open('/home/edog/ros2_ws/src/ia_package/resource/odrive_config.json') as file:
+        with open('/home/edog/ros2_ws/src/control_package/resource/odrive_config.json') as file:
             config = json.load(file)
         self.get_logger().info(f"[Loading Odrive Config] odrive_config.json")
 
@@ -200,8 +215,8 @@ class MotionService(Node):
         self.odrv0.axis0.controller.config.vel_integrator_gain = vel_integrator_gain  # Velocity integrator gain for axis0
         self.odrv0.axis1.controller.config.vel_integrator_gain = vel_integrator_gain  # Velocity integrator gain for axis1
 
-    def startFilteredPositionControl(self):
-        with open('/home/edog/ros2_ws/src/ia_package/resource/odrive_config.json') as file:
+    def setPID(self):
+        with open('/home/edog/ros2_ws/src/control_package/resource/odrive_config.json') as file:
             config = json.load(file)
         self.get_logger().info(f"[Loading Odrive Config] odrive_config.json")
 
@@ -229,6 +244,14 @@ class MotionService(Node):
             return True
         else:
             return False
+
+    def disable_motor_loop_control(self):
+        if self.odrv0 is not None:
+            self.get_logger().info(f"Disabling motor loop control")
+            self.odrv0.axis0.requested_state = AXIS_STATE_IDLE
+            self.odrv0.axis1.requested_state = AXIS_STATE_IDLE
+        else:
+            self.get_logger().error(f"Odrive board is not connected")
 
     def print_robot_infos(self):
         self.get_logger().info(
