@@ -6,9 +6,20 @@
   "startingPos": "0,0,0",
   "strategy": [
     {
-      "name": "opening",
+      "name": "Robot Initialization",
       "actions": [
-        { "grab": "0,0,-1" }
+        { "calibrate": "True" }
+      ]
+    },
+    {
+      "name": "Opening",
+      "actions": [
+        { "forward": "200" },
+        { "grab": "" },
+        { "forward": "-230" },
+        { "goto": "200,200,-1" },
+        { "grab": "" },
+        { "forward": "-474" }
       ]
     }
   ]

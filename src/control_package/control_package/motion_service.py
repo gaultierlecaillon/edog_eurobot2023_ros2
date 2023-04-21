@@ -6,6 +6,7 @@ from rclpy.node import Node
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import BoolBool
+from robot_interfaces.srv import IntBool
 
 # odrive
 import odrive
@@ -40,6 +41,11 @@ class MotionService(Node):
             CmdPositionService,
             "cmd_position_service",
             self.position_callback)
+
+        self.forward_service_ = self.create_service(
+            IntBool,
+            "cmd_forward_service",
+            self.forward_callback)
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -88,6 +94,19 @@ class MotionService(Node):
         time.sleep(0.2)
         return response
 
+    def forward_callback(self, request, response):
+        self.get_logger().info(f"\n")
+        self.get_logger().info(f"Starting process forward_callback {request}")
+
+        increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
+        self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.x_ = self.x_ + request.distance_mm * math.cos(math.radians(self.r_))
+        self.y_ = self.x_ + request.distance_mm * math.cos(math.radians(self.r_))
+        self.print_robot_infos()
+
+        response.success = True
+        return response
+
     def position_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Starting process position_callback {request}")
@@ -98,7 +117,7 @@ class MotionService(Node):
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
 
-        self.get_logger().info("\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
+        self.get_logger().info(f"\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
 
         # First rotate
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
@@ -175,7 +194,7 @@ class MotionService(Node):
             f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
 
         start = time.time()
-        timeout = 10  # Set a timeout duration in seconds
+        timeout = 5  # Set a timeout duration in seconds
 
         while True:
             # Calculate the position error for both axes
@@ -184,7 +203,7 @@ class MotionService(Node):
 
             # Check if both axes have reached their target positions within the tolerance range
             if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-                self.get_logger().warn(f"Motion completed in {time.time() - start:.3f} seconds\n")
+                self.get_logger().warn(f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
                 break
 
             # Check if the operation has timed out

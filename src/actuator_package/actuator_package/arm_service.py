@@ -5,6 +5,9 @@ import rclpy
 from rclpy.node import Node
 from robot_interfaces.srv import CmdPositionService
 import RPi.GPIO as GPIO
+from robot_interfaces.srv import IntBool
+from functools import partial
+from robot_interfaces.srv import NullBool
 
 # Servo
 from adafruit_servokit import ServoKit
@@ -21,8 +24,12 @@ class ArmService(Node):
     arm_offset = {
         "open": 15,
         "slightly": 65,
-        "closed": 80
+        "close": 80
     }
+
+    # Node State
+    stack_loaded = 0
+    arm_position = "down"
 
     def __init__(self):
         super().__init__("motion_service")
@@ -31,7 +38,7 @@ class ArmService(Node):
         self.initStepper()
 
         self.arm_service_ = self.create_service(
-            CmdPositionService,
+            NullBool,
             "cmd_arm_service",
             self.arm_callback)
 
@@ -41,40 +48,61 @@ class ArmService(Node):
         self.stepper_motor = RpiMotorLib.A4988Nema(self.direction, self.step, (21, 21, 21), "DRV8825")
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.EN_pin, GPIO.OUT)  # set enable pin as output
+        GPIO.output(self.EN_pin, GPIO.HIGH)
+
+    def cmd_forward(self, distance_mm):
+        service_name = "cmd_forward_service"
+
+        self.get_logger().info(f"[Exec Action] forward of: {distance_mm}mm")
+        client = self.create_client(IntBool, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+
+        request = IntBool.Request()
+        request.distance_mm = int(distance_mm)
+        future = client.call_async(request)
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
 
     def arm_callback(self, request, response):
+        GPIO.output(self.EN_pin, GPIO.LOW)
+        push_distance = 30 #TODO
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_callback function (request:{request})")
 
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-        for i in range(0, 2):
-            # First, slightly close the grabber
+
+        if self.arm_position == "down" and self.stack_loaded == 0:
             self.slightlyArm()
-            time.sleep(0.25)
-
-            # Then goto + 20mm
-            # goto
-
-            # Then close
+            self.cmd_forward(push_distance)# Then goto + 20mm
+            time.sleep(0.5)
             self.closeArm()
             time.sleep(0.5)
-
-            # Then move up
-
             self.move_up_arm()
-            time.sleep(3)
+            self.stack_loaded += 1
+        elif self.arm_position == "up" and self.stack_loaded > 0:
             self.openArm()
             time.sleep(1)
             self.move_down_arm()
-            
-        self.slightlyArm()
+            time.sleep(0.5)
+            self.slightlyArm()
+            time.sleep(0.5)
+            self.cmd_forward(push_distance)# Then goto + 20mm
+            time.sleep(0.5)
+            self.closeArm()
+            time.sleep(0.5)
+            self.move_up_arm()
+        else:
+            self.get_logger().fatal(f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
+            exit(1)
 
 
         #clean
         GPIO.output(self.EN_pin, GPIO.HIGH)
         #GPIO.cleanup()
 
+        response.success = True
         return response
 
     def move_up_arm(self):
@@ -85,6 +113,7 @@ class ArmService(Node):
                              .0004,  # step delay [sec]
                              False,  # True = print verbose output
                              .05)  # initial delay [sec]
+        self.arm_position = "up"
 
     def move_down_arm(self):
         step = 380
@@ -94,10 +123,11 @@ class ArmService(Node):
                              .0004,  # step delay [sec]
                              False,  # True = print verbose output
                              .05)  # initial delay [sec]
+        self.arm_position = "down"
 
     def closeArm(self):
-        self.kit.servo[0].angle = self.arm_offset['closed']
-        self.kit.servo[1].angle = 180 - self.arm_offset['closed']
+        self.kit.servo[0].angle = self.arm_offset['close']
+        self.kit.servo[1].angle = 180 - self.arm_offset['close']
 
     def openArm(self):
         self.kit.servo[0].angle = self.arm_offset['open']

@@ -7,6 +7,8 @@ from std_msgs.msg import Bool
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import BoolBool
+from robot_interfaces.srv import IntBool
+from robot_interfaces.srv import NullBool
 
 
 class IANode(Node):
@@ -74,18 +76,13 @@ class IANode(Node):
         self.get_logger().info(f"[Publish] {request} to cmd_calibration_service")
 
     def grab(self, param):
-        self.get_logger().info(f"TODO: Performing grab action with param: {param}")
-        #self.goto(param)
+        self.get_logger().info(f"Performing grab action with param: {param}")
 
-        client = self.create_client(CmdPositionService, "cmd_arm_service")
+        client = self.create_client(NullBool, "cmd_arm_service")
         while not client.wait_for_service(1):
             self.get_logger().warn("Waiting for Server to be available...")
 
-        int_param = [int(x) for x in param.split(",")]
-        request = CmdPositionService.Request()
-        request.x = int_param[0]
-        request.y = int_param[1]
-        request.r = int_param[2]
+        request = NullBool.Request()
         future = client.call_async(request)
 
         future.add_done_callback(
@@ -93,12 +90,31 @@ class IANode(Node):
 
         self.get_logger().info(f"[Publish] {request} to cmd_arm_service")
 
+    def forward(self, param):
+        service_name = "cmd_forward_service"
+
+        self.get_logger().info(f"[Exec Action] forward with param: '{param}'")
+        client = self.create_client(IntBool, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+
+        request = IntBool.Request()
+        request.distance_mm = int(param)
+
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_current_action))
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
     def goto(self, param):
+        service_name = "cmd_position_service"
         self.get_logger().info(f"[Exec Action] goto with param: {param}")
 
-        client = self.create_client(CmdPositionService, "cmd_position_service")
+        client = self.create_client(CmdPositionService, service_name)
         while not client.wait_for_service(1):
-            self.get_logger().warn("Waiting for Server to be available...")
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         int_param = [int(x) for x in param.split(",")]
         request = CmdPositionService.Request()
@@ -110,7 +126,7 @@ class IANode(Node):
         future.add_done_callback(
             partial(self.callback_current_action))
 
-        self.get_logger().info(f"[Publish] {request} to cmd_position_service")
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
 
     def callback_current_action(self, future):
         try:
