@@ -6,15 +6,9 @@
   "startingPos": "0,0,0",
   "strategy": [
     {
-      "name": "Starting Blocks",
-      "actions": [
-        { "calibrate": "True" }
-      ]
-    },
-    {
       "name": "opening",
       "actions": [
-        { "goto": "200,200,0" }
+        { "grab": "0,0,-1" }
       ]
     }
   ]

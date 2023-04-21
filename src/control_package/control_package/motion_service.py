@@ -64,7 +64,7 @@ class MotionService(Node):
             self.reset_encoders()
             self.odrv0.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
             self.odrv0.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-            
+
             self.get_logger().warn(f"Robot already in closed loop control")
         else:
             self.get_logger().info(f"Starting calibration...")            
@@ -98,8 +98,7 @@ class MotionService(Node):
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
 
-        self.get_logger().warn(
-            f"[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm")
+        self.get_logger().info("\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
 
         # First rotate
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
