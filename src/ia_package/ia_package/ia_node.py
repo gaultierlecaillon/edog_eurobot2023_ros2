@@ -25,6 +25,9 @@ class IANode(Node):
     def master_callback(self):
         self.execute_current_action()
 
+    '''
+    Execute Actions in the queue
+    '''
     def execute_current_action(self):
         if len(self.actions_dict) > 0:
             current_action = self.actions_dict[0]
@@ -55,9 +58,6 @@ class IANode(Node):
             self.update_current_action_status('done')
             self.destroy_subscription(self.subscriber_)  # Unsubscribe from the topic
 
-    def grab(self, param):
-        self.get_logger().info(f"TODO: Performing grab action with param: {param}")
-
     def calibrate(self, param):
         self.get_logger().info(f"[Exec Action] calibrate with param: {param}")
         client = self.create_client(BoolBool, "cmd_calibration_service")
@@ -73,11 +73,31 @@ class IANode(Node):
 
         self.get_logger().info(f"[Publish] {request} to cmd_calibration_service")
 
+    def grab(self, param):
+        self.get_logger().info(f"TODO: Performing grab action with param: {param}")
+        #self.goto(param)
+
+        client = self.create_client(CmdPositionService, "cmd_arm_service")
+        while not client.wait_for_service(1):
+            self.get_logger().warn("Waiting for Server to be available...")
+
+        int_param = [int(x) for x in param.split(",")]
+        request = CmdPositionService.Request()
+        request.x = int_param[0]
+        request.y = int_param[1]
+        request.r = int_param[2]
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_current_action))
+
+        self.get_logger().info(f"[Publish] {request} to cmd_arm_service")
+
     def goto(self, param):
         self.get_logger().info(f"[Exec Action] goto with param: {param}")
 
         client = self.create_client(CmdPositionService, "cmd_position_service")
-        while not client.wait_for_service(0.25):
+        while not client.wait_for_service(1):
             self.get_logger().warn("Waiting for Server to be available...")
 
         int_param = [int(x) for x in param.split(",")]
