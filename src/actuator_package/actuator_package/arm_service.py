@@ -37,10 +37,15 @@ class ArmService(Node):
         self.openArm()
         self.initStepper()
 
-        self.arm_service_ = self.create_service(
+        self.create_service(
             NullBool,
             "cmd_arm_service",
             self.arm_callback)
+
+        self.create_service(
+            NullBool,
+            "cmd_arm_drop_service",
+            self.arm_drop_callback)
 
         self.get_logger().info("Arm Service has been started.")
 
@@ -64,8 +69,24 @@ class ArmService(Node):
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
-    def arm_callback(self, request, response):
+    def arm_drop_callback(self, request, response):
+        self.get_logger().info(f"\n")
+        self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
         GPIO.output(self.EN_pin, GPIO.LOW)
+
+        self.move_down_arm()
+        time.sleep(0.5)
+        self.openArm()
+
+        # clean
+        GPIO.output(self.EN_pin, GPIO.HIGH)
+        # GPIO.cleanup()
+
+        response.success = True
+        return response
+
+
+    def arm_callback(self, request, response):
         push_distance = 30 #TODO
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_callback function (request:{request})")

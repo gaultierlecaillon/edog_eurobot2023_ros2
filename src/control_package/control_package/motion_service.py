@@ -101,8 +101,7 @@ class MotionService(Node):
         increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
         self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ = self.x_ + request.distance_mm * math.cos(math.radians(self.r_))
-        self.y_ = self.x_ + request.distance_mm * math.cos(math.radians(self.r_))
-        self.print_robot_infos()
+        self.y_ = self.y_ + request.distance_mm * math.sin(math.radians(self.r_))
 
         response.success = True
         return response
@@ -123,37 +122,30 @@ class MotionService(Node):
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
         self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ = target_angle
-        self.print_robot_infos()
 
         # Then move forward
-        if abs(target_angle - self.r_) == 180: #go backward instead of forward
-            increment_mm = -increment_mm
-
         increment_0_pos, increment_1_pos = self.motionForward(increment_mm)
         self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
-        self.x_ = request.x
-        self.y_ = request.y
-        self.print_robot_infos()
+        self.x_ += request.x
+        self.y_ += request.y
 
         # Finally rotate in the final angle
         if request.r != -1:
             increment_0_pos, increment_1_pos = self.motionRotate(request.r)
             self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
             self.r_ = request.r
-            self.print_robot_infos()
 
         response.success = True
         self.get_logger().info(f"request {request}")
         self.get_logger().info(f"response {response}")
 
+        self.print_robot_infos()
         return response
 
     def motionRotate(self, target_angle):
         rotation_to_do = target_angle - self.r_
-        if rotation_to_do == 0 or abs(rotation_to_do) == 180:
+        if int(rotation_to_do) == 0:
             return 0, 0
-        elif abs(rotation_to_do) > 180:
-            rotation_to_do = - 360 - rotation_to_do
 
 
         # I know after calibration that 360°=838mm
@@ -166,7 +158,7 @@ class MotionService(Node):
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(-increment_pos, False)
 
-        time.sleep(2)
+        self.print_robot_infos()
         return increment_pos, -increment_pos
 
     def motionForward(self, increment_mm):
@@ -177,6 +169,7 @@ class MotionService(Node):
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(increment_pos, False)
 
+        self.print_robot_infos()
         return increment_pos, increment_pos
 
     def getEncoderIndex(self, axis):
@@ -190,8 +183,8 @@ class MotionService(Node):
     def waitForMovementCompletion(self, target_position_0, target_position_1):
         self.get_logger().info(
             f"[WaitForMovementCompletion] (target_position_0={target_position_0} and target_position_1={target_position_1})")
-        self.get_logger().info(
-            f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
+        #self.get_logger().info(
+        #    f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
 
         start = time.time()
         timeout = 5  # Set a timeout duration in seconds
