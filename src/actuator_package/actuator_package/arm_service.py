@@ -8,6 +8,7 @@ import RPi.GPIO as GPIO
 from robot_interfaces.srv import IntBool
 from functools import partial
 from robot_interfaces.srv import NullBool
+from robot_interfaces.srv import FloatBool
 
 # Servo
 from adafruit_servokit import ServoKit
@@ -47,6 +48,11 @@ class ArmService(Node):
             "cmd_arm_drop_service",
             self.arm_drop_callback)
 
+        self.create_service(
+            NullBool,
+            "cmd_arm_unstack_service",
+            self.arm_unstack_callback)
+
         self.get_logger().info("Arm Service has been started.")
 
     def initStepper(self):
@@ -69,6 +75,27 @@ class ArmService(Node):
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
+    def cmd_rotate(self, angle):
+        service_name = "cmd_rotate_service"
+
+        self.get_logger().info(f"[Exec Action] angle of: {angle}°")
+        client = self.create_client(IntBool, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+
+        request = FloatBool.Request()
+        request.angle = angle
+        future = client.call_async(request)
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def arm_unstack_callback(self, request, response):
+        self.get_logger().info(f"\n")
+        self.get_logger().info(f"Service starting process arm_unstack_callback function (request:{request})")
+        GPIO.output(self.EN_pin, GPIO.LOW)
+
+        self.cmd_rotate(45)
+
     def arm_drop_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
@@ -85,43 +112,38 @@ class ArmService(Node):
         response.success = True
         return response
 
-
     def arm_callback(self, request, response):
-        push_distance = 30 #TODO
+        push_distance = 30  # TODO
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_callback function (request:{request})")
 
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-
         if self.arm_position == "down" and self.stack_loaded == 0:
             self.slightlyArm()
-            self.cmd_forward(push_distance)# Then goto + 20mm
-            time.sleep(0.5)
+            self.cmd_forward(push_distance)  # Then goto + 20mm
             self.closeArm()
             time.sleep(0.5)
             self.move_up_arm()
             self.stack_loaded += 1
         elif self.arm_position == "up" and self.stack_loaded > 0:
             self.openArm()
-            time.sleep(1)
+            time.sleep(0.5)
             self.move_down_arm()
-            time.sleep(0.5)
+            time.sleep(0.2)
             self.slightlyArm()
-            time.sleep(0.5)
-            self.cmd_forward(push_distance)# Then goto + 20mm
-            time.sleep(0.5)
+            self.cmd_forward(push_distance)  # Then goto + 20mm
             self.closeArm()
             time.sleep(0.5)
             self.move_up_arm()
         else:
-            self.get_logger().fatal(f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
-            exit(1)
+            self.get_logger().fatal(
+                f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
+            # exit(1)
 
-
-        #clean
+        # clean
         GPIO.output(self.EN_pin, GPIO.HIGH)
-        #GPIO.cleanup()
+        # GPIO.cleanup()
 
         response.success = True
         return response
@@ -129,21 +151,21 @@ class ArmService(Node):
     def move_up_arm(self):
         step = 380
         self.stepper_motor.motor_go(False,  # True=Clockwise, False=Counter-Clockwise
-                             "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
-                             step,  # number of steps
-                             .0004,  # step delay [sec]
-                             False,  # True = print verbose output
-                             .05)  # initial delay [sec]
+                                    "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
+                                    step,  # number of steps
+                                    .0004,  # step delay [sec]
+                                    False,  # True = print verbose output
+                                    .05)  # initial delay [sec]
         self.arm_position = "up"
 
     def move_down_arm(self):
         step = 380
         self.stepper_motor.motor_go(True,  # True=Clockwise, False=Counter-Clockwise
-                             "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
-                             step,  # number of steps
-                             .0004,  # step delay [sec]
-                             False,  # True = print verbose output
-                             .05)  # initial delay [sec]
+                                    "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
+                                    step,  # number of steps
+                                    .0004,  # step delay [sec]
+                                    False,  # True = print verbose output
+                                    .05)  # initial delay [sec]
         self.arm_position = "down"
 
     def closeArm(self):

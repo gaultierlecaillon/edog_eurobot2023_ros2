@@ -90,8 +90,23 @@ class IANode(Node):
 
         self.get_logger().info(f"[Publish] {request} to cmd_arm_service")
 
+    def unstack(self, param):
+        service_name = "cmd_arm_unstack_service" #TODO unstack and drop and grab soulg be the same service
+        self.get_logger().info(f"Performing 'unstack' action with param: {param}")
+        client = self.create_client(NullBool, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn("Waiting for Server to be available...")
+
+        request = NullBool.Request()
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_current_action))
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
     def drop(self, param):
-        self.get_logger().info(f"Performing drop action with param: {param}")
+        self.get_logger().info(f"Performing 'drop' action with param: {param}")
 
         client = self.create_client(NullBool, "cmd_arm_drop_service")
         while not client.wait_for_service(1):
