@@ -35,7 +35,7 @@ class ArmService(Node):
     def __init__(self):
         super().__init__("motion_service")
         self.kit = ServoKit(channels=16)
-        self.openArm()
+        self.open_arm()
         self.initStepper()
 
         self.create_service(
@@ -97,52 +97,113 @@ class ArmService(Node):
         self.close_arm()
         time.sleep(2)
 
-        angle = 35
-        forward = 175
+        angle = 45
+        forward = 150
 
-
-        #depose 1
+        #depose Pile 1 Cake 1
         self.cmd_rotate(angle)
         self.cmd_forward(forward)
-        time.sleep(1.2)
+        time.sleep(1.5)
         self.slightlyArm()
-        time.sleep(0.2)
+        time.sleep(0.3)
         self.move_arm(1)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm(2)
         self.cmd_forward(-forward)
-        time.sleep(2)
+        time.sleep(1.7)
         self.cmd_rotate(-angle)
+        self.move_arm_down()
 
-        #depose 2
+        #depose Pile 2 Cake 1
         self.cmd_forward(forward)
-        time.sleep(1.2)
+        time.sleep(1.5)
         self.slightlyArm()
-        time.sleep(0.2)
+        time.sleep(0.3)
         self.move_arm(1)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm(2)
         self.cmd_forward(-forward)
-        time.sleep(2)
+        time.sleep(1.7)
+        self.move_arm_down()
 
-        # depose 2
+        #depose Pile 3 Cake 1 et 2
         self.cmd_rotate(-angle)
         self.cmd_forward(forward)
-        time.sleep(1.2)
+        time.sleep(1.5)
         self.slightlyArm()
-        time.sleep(0.2)
+        time.sleep(0.3)
         self.move_arm(2)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)
-        time.sleep(2)
+        time.sleep(1.7)
         self.cmd_rotate(angle)
+
+        #depose Pile 2 Cake 2
+        self.cmd_forward(forward)
+        self.move_arm(2)
+        time.sleep(1.7)
+        self.slightlyArm()
+        time.sleep(0.3)
+        self.move_arm(2)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm_up()
+        self.cmd_forward(-forward)
+        time.sleep(1.7)
+        self.cmd_rotate(angle)
+
+        # depose Pile 1 Cake 2 et 3
+        self.cmd_forward(forward)
+        time.sleep(2)
+        self.slightlyArm()
+        time.sleep(0.3)
+        self.move_arm(3)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm_up()
+        self.cmd_forward(-forward)
+        time.sleep(1.7)
+        self.cmd_rotate(-angle)
+
+        # depose Pile 2 Cake 3
+        self.cmd_forward(forward)
+        time.sleep(1.8)
+        self.slightlyArm()
+        time.sleep(0.3)
+        self.move_arm(3)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm_up()
+        self.cmd_forward(-forward)
+        time.sleep(1.7)
+        self.cmd_rotate(-angle)
+
+        # depose Pile 3 Cake 3
+        self.cmd_forward(forward)
+        time.sleep(1.7)
+        self.open_arm()
+        time.sleep(0.1)
+        self.move_arm_down()
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.cmd_forward(-forward)
+        time.sleep(1.7)
+        self.cmd_rotate(67.5)
+        self.cmd_forward(forward - 75)
+        time.sleep(1.7)
+        self.open_arm()
+
 
 
 
@@ -157,7 +218,7 @@ class ArmService(Node):
 
         self.move_arm_down()
         time.sleep(0.5)
-        self.openArm()
+        self.open_arm()
 
         # clean
         GPIO.output(self.EN_pin, GPIO.HIGH)
@@ -181,7 +242,7 @@ class ArmService(Node):
             self.move_arm_up()
             self.stack_loaded += 1
         elif self.arm_position == "up" and self.stack_loaded > 0:
-            self.openArm()
+            self.open_arm()
             time.sleep(0.5)
             self.move_arm_down()
             time.sleep(0.2)
@@ -203,7 +264,7 @@ class ArmService(Node):
         return response
     
     def move_arm(self, number_of_cake):
-        step = number_of_cake * 75
+        step = number_of_cake * 90
         if step > 360:
             step = 360
         delta = step - self.arm_position
@@ -241,7 +302,7 @@ class ArmService(Node):
         self.kit.servo[0].angle = self.arm_offset['close']
         self.kit.servo[1].angle = 180 - self.arm_offset['close']
 
-    def openArm(self):
+    def open_arm(self):
         self.kit.servo[0].angle = self.arm_offset['open']
         self.kit.servo[1].angle = 180 - self.arm_offset['open']
         time.sleep(0.15)
