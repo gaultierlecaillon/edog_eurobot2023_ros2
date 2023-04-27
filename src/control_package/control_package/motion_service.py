@@ -189,6 +189,8 @@ class MotionService(Node):
 
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(increment_pos, False)
+
+        self.print_robot_infos()
         return increment_pos, increment_pos
 
     def getEncoderIndex(self, axis):
