@@ -117,7 +117,7 @@ class MotionService(Node):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Starting process rotate_callback {request}")
 
-        target_angle = self.r_ + request.angle
+        target_angle = self.r_ + request.angle_deg
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
         self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ += target_angle

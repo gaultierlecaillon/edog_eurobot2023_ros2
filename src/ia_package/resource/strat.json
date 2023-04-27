@@ -12,9 +12,8 @@
       ]
     },
     {
-      "name": "Opening",
+      "name": "Test",
       "actions": [
-        { "grab": ""},
         { "unstack": "" }
       ]
     }

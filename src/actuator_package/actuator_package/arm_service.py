@@ -30,7 +30,7 @@ class ArmService(Node):
 
     # Node State
     stack_loaded = 0
-    arm_position = "down"
+    arm_position = 0
 
     def __init__(self):
         super().__init__("motion_service")
@@ -71,7 +71,7 @@ class ArmService(Node):
 
         request = IntBool.Request()
         request.distance_mm = int(distance_mm)
-        future = client.call_async(request)
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -79,13 +79,13 @@ class ArmService(Node):
         service_name = "cmd_rotate_service"
 
         self.get_logger().info(f"[Exec Action] angle of: {angle}°")
-        client = self.create_client(IntBool, service_name)
+        client = self.create_client(FloatBool, service_name)
         while not client.wait_for_service(1):
             self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         request = FloatBool.Request()
-        request.angle = angle
-        future = client.call_async(request)
+        request.angle_deg = float(angle)
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -94,14 +94,68 @@ class ArmService(Node):
         self.get_logger().info(f"Service starting process arm_unstack_callback function (request:{request})")
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-        self.cmd_rotate(45)
+        self.close_arm()
+        time.sleep(2)
+
+        angle = 35
+        forward = 175
+
+
+        #depose 1
+        self.cmd_rotate(angle)
+        self.cmd_forward(forward)
+        time.sleep(1.2)
+        self.slightlyArm()
+        time.sleep(0.2)
+        self.move_arm(1)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm(2)
+        self.cmd_forward(-forward)
+        time.sleep(2)
+        self.cmd_rotate(-angle)
+
+        #depose 2
+        self.cmd_forward(forward)
+        time.sleep(1.2)
+        self.slightlyArm()
+        time.sleep(0.2)
+        self.move_arm(1)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm(2)
+        self.cmd_forward(-forward)
+        time.sleep(2)
+
+        # depose 2
+        self.cmd_rotate(-angle)
+        self.cmd_forward(forward)
+        time.sleep(1.2)
+        self.slightlyArm()
+        time.sleep(0.2)
+        self.move_arm(2)
+        time.sleep(0.2)
+        self.close_arm()
+        time.sleep(0.3)
+        self.move_arm_up()
+        self.cmd_forward(-forward)
+        time.sleep(2)
+        self.cmd_rotate(angle)
+
+
+
+        #self.cmd_rotate(-35)
+        response.success = True
+        return response
 
     def arm_drop_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-        self.move_down_arm()
+        self.move_arm_down()
         time.sleep(0.5)
         self.openArm()
 
@@ -122,20 +176,20 @@ class ArmService(Node):
         if self.arm_position == "down" and self.stack_loaded == 0:
             self.slightlyArm()
             self.cmd_forward(push_distance)  # Then goto + 20mm
-            self.closeArm()
+            self.close_arm()
             time.sleep(0.5)
-            self.move_up_arm()
+            self.move_arm_up()
             self.stack_loaded += 1
         elif self.arm_position == "up" and self.stack_loaded > 0:
             self.openArm()
             time.sleep(0.5)
-            self.move_down_arm()
+            self.move_arm_down()
             time.sleep(0.2)
             self.slightlyArm()
             self.cmd_forward(push_distance)  # Then goto + 20mm
-            self.closeArm()
+            self.close_arm()
             time.sleep(0.5)
-            self.move_up_arm()
+            self.move_arm_up()
         else:
             self.get_logger().fatal(
                 f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
@@ -147,28 +201,43 @@ class ArmService(Node):
 
         response.success = True
         return response
-
-    def move_up_arm(self):
-        step = 380
-        self.stepper_motor.motor_go(False,  # True=Clockwise, False=Counter-Clockwise
+    
+    def move_arm(self, number_of_cake):
+        step = number_of_cake * 75
+        if step > 360:
+            step = 360
+        delta = step - self.arm_position
+        self.stepper_motor.motor_go(delta < 0,  # True=Clockwise, False=Counter-Clockwise
                                     "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
-                                    step,  # number of steps
+                                    abs(delta),  # number of steps
                                     .0004,  # step delay [sec]
                                     False,  # True = print verbose output
                                     .05)  # initial delay [sec]
-        self.arm_position = "up"
+        self.arm_position = step
 
-    def move_down_arm(self):
-        step = 380
+    def move_arm_up(self):
+        step = 360
+        delta = step - self.arm_position
+        self.stepper_motor.motor_go(delta < 0,  # True=Clockwise, False=Counter-Clockwise
+                                    "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
+                                    abs(delta),  # number of steps
+                                    .0004,  # step delay [sec]
+                                    False,  # True = print verbose output
+                                    .05)  # initial delay [sec]
+        self.arm_position = step
+
+    def move_arm_down(self):
+        step = 0
+        delta = step - self.arm_position
         self.stepper_motor.motor_go(True,  # True=Clockwise, False=Counter-Clockwise
                                     "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
-                                    step,  # number of steps
+                                    abs(delta),  # number of steps
                                     .0004,  # step delay [sec]
                                     False,  # True = print verbose output
                                     .05)  # initial delay [sec]
-        self.arm_position = "down"
+        self.arm_position = 0
 
-    def closeArm(self):
+    def close_arm(self):
         self.kit.servo[0].angle = self.arm_offset['close']
         self.kit.servo[1].angle = 180 - self.arm_offset['close']
 

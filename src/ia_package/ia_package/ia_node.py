@@ -30,6 +30,7 @@ class IANode(Node):
     '''
     Execute Actions in the queue
     '''
+
     def execute_current_action(self):
         if len(self.actions_dict) > 0:
             current_action = self.actions_dict[0]
@@ -42,10 +43,16 @@ class IANode(Node):
                 self.current_action_already_printed = True
 
             if current_action['status'] == "pending":
-                getattr(self, self.action_name)(self.action_param)
-                self.update_current_action_status('on going')
+                try:
+                    getattr(self, self.action_name)(self.action_param)
+                    self.update_current_action_status('on going')
+                except:
+                    self.get_logger().fatal(
+                        f"Action {self.action_name} is unknown, no method call {self.action_name} in ia node")
+                    exit(1)
         else:
-            self.get_logger().info("\033[38;5;208m[Match done] No more actions to exec\n\n\t\t\t (⌐■_■) 𝘪𝘴 𝘪𝘵 𝘗1 ?\033[0m\n")
+            self.get_logger().info(
+                "\033[38;5;208m[Match done] No more actions to exec\n\n\t\t\t (⌐■_■) 𝘪𝘴 𝘪𝘵 𝘗1 ?\033[0m\n")
 
             rclpy.shutdown()
 
@@ -91,7 +98,7 @@ class IANode(Node):
         self.get_logger().info(f"[Publish] {request} to cmd_arm_service")
 
     def unstack(self, param):
-        service_name = "cmd_arm_unstack_service" #TODO unstack and drop and grab soulg be the same service
+        service_name = "cmd_arm_unstack_service"  # TODO unstack and drop and grab soulg be the same service
         self.get_logger().info(f"Performing 'unstack' action with param: {param}")
         client = self.create_client(NullBool, service_name)
         while not client.wait_for_service(1):
