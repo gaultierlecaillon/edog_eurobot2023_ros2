@@ -12,15 +12,8 @@
       ]
     },
     {
-      "name": "Opening",
+      "name": "Test",
       "actions": [
-        { "forward": "170" },
-        { "grab": "" },
-        { "forward": "170" },
-        { "grab": "" },
-        { "goto": "770,-380,-1" },
-        { "grab": "" },
-        { "goto": "150,-230,180" },
         { "unstack": "" }
       ]
     }

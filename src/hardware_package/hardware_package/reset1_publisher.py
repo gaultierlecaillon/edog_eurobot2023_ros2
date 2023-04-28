@@ -5,6 +5,7 @@ from example_interfaces.msg import String
 import RPi.GPIO as GPIO
 import time
 import board
+from std_msgs.msg import Bool
 
 
 class Reset1Publisher(Node):
@@ -20,17 +21,18 @@ class Reset1Publisher(Node):
         GPIO.setup(self.tiretteGPIO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
         # Publisher
-        self.publisher = self.create_publisher(String, "reset1_topic", 10)
+        self.publisher = self.create_publisher(Bool, "reset1_topic", 10)
 
         # end
         self.get_logger().info("Node reset1_publisher starting")
 
     def publish_state(self):
-        msg = String()
+        msg = Bool()
         reset1_state = not GPIO.input(self.tiretteGPIO)
-        msg.data = str(reset1_state)
+        msg.data = bool(reset1_state)
         self.publisher.publish(msg)
-        self.get_logger().info(msg.data)
+        if msg.data:
+            self.get_logger().info(str(msg.data))
 
 
 def main(args=None):

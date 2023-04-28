@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'arm_service = actuator_package.arm_service:main',
         ],
     },
 )

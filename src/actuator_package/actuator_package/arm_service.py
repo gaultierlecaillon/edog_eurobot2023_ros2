@@ -33,7 +33,7 @@ class ArmService(Node):
     arm_position = 0
 
     def __init__(self):
-        super().__init__("motion_service")
+        super().__init__("arm_service")
         self.kit = ServoKit(channels=16)
         self.open_arm()
         self.initStepper()
@@ -41,7 +41,7 @@ class ArmService(Node):
         self.create_service(
             NullBool,
             "cmd_arm_service",
-            self.arm_callback)
+            self.arm_grab_callback)
 
         self.create_service(
             NullBool,
@@ -101,9 +101,6 @@ class ArmService(Node):
         forward = 150
 
         #depose Pile 1 Cake 1
-        self.cmd_rotate(angle)
-        self.cmd_forward(forward)
-        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.3)
         self.move_arm(1)
@@ -200,9 +197,10 @@ class ArmService(Node):
         self.cmd_forward(-forward)
         time.sleep(1.7)
         self.cmd_rotate(67.5)
-        self.cmd_forward(forward - 75)
         time.sleep(1.7)
         self.open_arm()
+        self.cmd_forward(forward - 75)
+
 
 
 
@@ -227,21 +225,21 @@ class ArmService(Node):
         response.success = True
         return response
 
-    def arm_callback(self, request, response):
+    def arm_grab_callback(self, request, response):
         push_distance = 30  # TODO
         self.get_logger().info(f"\n")
-        self.get_logger().info(f"Service starting process arm_callback function (request:{request})")
+        self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
 
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-        if self.arm_position == "down" and self.stack_loaded == 0:
+        if self.stack_loaded == 0:
             self.slightlyArm()
             self.cmd_forward(push_distance)  # Then goto + 20mm
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
             self.stack_loaded += 1
-        elif self.arm_position == "up" and self.stack_loaded > 0:
+        elif self.stack_loaded > 0:
             self.open_arm()
             time.sleep(0.5)
             self.move_arm_down()
