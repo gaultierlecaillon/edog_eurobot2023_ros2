@@ -73,9 +73,16 @@ class ArmService(Node):
 
         request = IntBool.Request()
         request.distance_mm = int(distance_mm)
-        client.call_async(request)
+        future = client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+        # Wait for the future response
+        while not future.done():
+            time.sleep(0.1)  # Wait for 100 milliseconds before checking again
+
+        response = future.result()
+        self.get_logger().info(f"[Response] Received: {response}")
 
     def cmd_rotate(self, angle):
         service_name = "cmd_rotate_service"
@@ -90,6 +97,14 @@ class ArmService(Node):
         client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+        # Wait for the future response
+        while not future.done():
+            time.sleep(0.1)  # Wait for 100 milliseconds before checking again
+            print(".")
+
+        response = future.result()
+        self.get_logger().info(f"[Response] Received: {response}")
 
     def arm_unstack_callback(self, request, response):
         self.get_logger().info(f"\n")
@@ -158,6 +173,7 @@ class ArmService(Node):
         self.cmd_forward(-forward)
         time.sleep(1.7)
         self.cmd_rotate(angle)
+        time.sleep(1) #todo remove
 
         # depose Pile 1 Cake 2 et 3
         self.cmd_forward(forward)
@@ -237,7 +253,7 @@ class ArmService(Node):
             time.sleep(0.5)
             self.move_arm_up()
             self.stack_loaded += 1
-        elif self.stack_loaded > 0:
+        elif self.stack_loaded == 1:
             self.open_arm()
             time.sleep(0.5)
             self.move_arm_down()
@@ -247,6 +263,14 @@ class ArmService(Node):
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
+        elif self.stack_loaded == 2:
+            self.open_arm()
+            time.sleep(0.5)
+            self.move_arm_down()
+            time.sleep(0.2)
+            self.slightlyArm()
+            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.close_arm()
         else:
             self.get_logger().fatal(
                 f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")

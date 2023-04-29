@@ -1,6 +1,5 @@
-from launch import LaunchDescription
+from launch import LaunchDescription, actions
 from launch_ros.actions import Node
-
 
 def generate_launch_description():
     ld = LaunchDescription()
@@ -26,7 +25,8 @@ def generate_launch_description():
     ia = Node(
         package="ia_package",
         executable="ia_node",
-        name="ia_node"
+        name="ia_node",
+        on_exit=actions.Shutdown()
     )
 
     ld.add_action(tirette_publisher)

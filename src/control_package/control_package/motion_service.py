@@ -17,7 +17,7 @@ import math
 
 class MotionService(Node):
     cpr = 8192
-    cpr_error_tolerance = 0.02
+    cpr_error_tolerance = 0.01
 
 
     target_0 = 0
@@ -41,7 +41,7 @@ class MotionService(Node):
         self.position_service_ = self.create_service(
             CmdPositionService,
             "cmd_position_service",
-            self.position_callback)
+            self.goto_callback)
 
         self.forward_service_ = self.create_service(
             IntBool,
@@ -126,9 +126,9 @@ class MotionService(Node):
         response.success = True
         return response
 
-    def position_callback(self, request, response):
+    def goto_callback(self, request, response):
         self.get_logger().info(f"\n")
-        self.get_logger().info(f"Starting process position_callback {request}")
+        self.get_logger().info(f"Starting process goto_callback {request}")
 
         # Calculate the target_angle in degrees to reach the point(x,y)
         target_angle = math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
