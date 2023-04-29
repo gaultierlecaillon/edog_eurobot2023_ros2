@@ -23,9 +23,11 @@ class ArmService(Node):
     step = 23  # Step GPIO Pin
     EN_pin = 24  # enable pin (LOW to enable)
     arm_offset = {
-        "open": 15,
+        "open": 20,
         "slightly": 65,
-        "close": 80
+        "close": 82,
+        "servo0_offset": -3,
+        "servo1_offset": 0,
     }
 
     # Node State
@@ -100,7 +102,7 @@ class ArmService(Node):
         angle = 45
         forward = 150
 
-        #depose Pile 1 Cake 1
+        # depose Pile 1 Cake 1
         self.slightlyArm()
         time.sleep(0.3)
         self.move_arm(1)
@@ -113,7 +115,7 @@ class ArmService(Node):
         self.cmd_rotate(-angle)
         self.move_arm_down()
 
-        #depose Pile 2 Cake 1
+        # depose Pile 2 Cake 1
         self.cmd_forward(forward)
         time.sleep(1.5)
         self.slightlyArm()
@@ -127,7 +129,7 @@ class ArmService(Node):
         time.sleep(1.7)
         self.move_arm_down()
 
-        #depose Pile 3 Cake 1 et 2
+        # depose Pile 3 Cake 1 et 2
         self.cmd_rotate(-angle)
         self.cmd_forward(forward)
         time.sleep(1.5)
@@ -142,7 +144,7 @@ class ArmService(Node):
         time.sleep(1.7)
         self.cmd_rotate(angle)
 
-        #depose Pile 2 Cake 2
+        # depose Pile 2 Cake 2
         self.cmd_forward(forward)
         self.move_arm(2)
         time.sleep(1.7)
@@ -201,11 +203,7 @@ class ArmService(Node):
         self.open_arm()
         self.cmd_forward(forward - 75)
 
-
-
-
-
-        #self.cmd_rotate(-35)
+        # self.cmd_rotate(-35)
         response.success = True
         return response
 
@@ -255,14 +253,14 @@ class ArmService(Node):
             # exit(1)
 
         # clean
-        GPIO.output(self.EN_pin, GPIO.HIGH)
+        # GPIO.output(self.EN_pin, GPIO.HIGH)
         # GPIO.cleanup()
 
         response.success = True
         return response
-    
+
     def move_arm(self, number_of_cake):
-        step = number_of_cake * 90
+        step = number_of_cake * 80
         if step > 360:
             step = 360
         delta = step - self.arm_position
@@ -297,19 +295,19 @@ class ArmService(Node):
         self.arm_position = 0
 
     def close_arm(self):
-        self.kit.servo[0].angle = self.arm_offset['close']
-        self.kit.servo[1].angle = 180 - self.arm_offset['close']
+        self.kit.servo[0].angle = self.arm_offset['close'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['close'] + self.arm_offset['servo1_offset']
 
     def open_arm(self):
-        self.kit.servo[0].angle = self.arm_offset['open']
-        self.kit.servo[1].angle = 180 - self.arm_offset['open']
+        self.kit.servo[0].angle = self.arm_offset['open'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['open'] + self.arm_offset['servo1_offset']
         time.sleep(0.15)
-        self.kit.servo[0].angle = self.arm_offset['open'] + 2
-        self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2)
+        self.kit.servo[0].angle = self.arm_offset['open'] + 2 + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2) + self.arm_offset['servo1_offset']
 
     def slightlyArm(self):
-        self.kit.servo[0].angle = self.arm_offset['slightly']
-        self.kit.servo[1].angle = 180 - self.arm_offset['slightly']
+        self.kit.servo[0].angle = self.arm_offset['slightly'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']
 
 
 def main(args=None):

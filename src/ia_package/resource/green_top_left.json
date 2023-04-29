@@ -1,7 +1,7 @@
 {
   "type": "Strategy",
-  "name": "MatchGreen",
-  "description": "Main strategy for green color",
+  "name": "Match Green Top Left",
+  "description": "opening 8pts, then auto mid",
   "color": "green",
   "startingPos": "0,0,0",
   "strategy": [
@@ -14,14 +14,15 @@
     {
       "name": "Opening",
       "actions": [
-        { "forward": "340" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" },
+        { "forward": "170" },
         { "grab": "" },
-        { "forward": "-370" },
-        { "goto": "0,-170,-1" },
+        { "forward": "170" },
         { "grab": "" },
-        { "goto": "0,-370,-1" },
+        { "goto": "770,-390,-1" },
         { "grab": "" },
-        { "goto": "200,-700,-100" },
+        { "goto": "50,-230,180" },
         { "unstack": "" }
       ]
     }
