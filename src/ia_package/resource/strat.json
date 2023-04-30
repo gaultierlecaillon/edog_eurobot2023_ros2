@@ -14,15 +14,7 @@
     {
       "name": "Opening",
       "actions": [
-        { "forward": "170" },
-        { "grab": "" },
-        { "forward": "170" },
-        { "grab": "" },
-        { "goto": "770,-390,-1" },
-        { "grab": "" },
-        { "goto": "50,-230,180" },
-        { "unstack": "" },
-        { "forward": "-200" }
+        { "unstack": "" }
       ]
     }
   ]

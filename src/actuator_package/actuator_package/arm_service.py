@@ -9,6 +9,7 @@ from robot_interfaces.srv import IntBool
 from functools import partial
 from robot_interfaces.srv import NullBool
 from robot_interfaces.srv import FloatBool
+import asyncio
 
 # Servo
 from adafruit_servokit import ServoKit
@@ -23,7 +24,7 @@ class ArmService(Node):
     step = 23  # Step GPIO Pin
     EN_pin = 24  # enable pin (LOW to enable)
     arm_offset = {
-        "open": 20,
+        "open": 22,
         "slightly": 65,
         "close": 84,
         "servo0_offset": -3,
@@ -73,9 +74,23 @@ class ArmService(Node):
 
         request = IntBool.Request()
         request.distance_mm = int(distance_mm)
-        client.call_async(request)
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_cmd_motion))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def callback_cmd_motion(self, future):
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().warn(f"[callback_cmd_motion] Callback ! {response}")
+                self.is_motion_complete = True
+            else:
+                self.get_logger().warn(f"Something went wrong with response: {response}")
+        except Exception as e:
+            self.get_logger().error("Service call failed %r" % (e,))
 
     def cmd_rotate(self, angle):
         service_name = "cmd_rotate_service"
@@ -87,7 +102,10 @@ class ArmService(Node):
 
         request = FloatBool.Request()
         request.angle_deg = float(angle)
-        client.call_async(request)
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_cmd_motion))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -228,7 +246,8 @@ class ArmService(Node):
 
         if self.stack_loaded == 0:
             self.slightlyArm()
-            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.cmd_forward(push_distance)
+            self.cmd_rotate(90)
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
@@ -239,7 +258,7 @@ class ArmService(Node):
             self.move_arm_down()
             time.sleep(0.2)
             self.slightlyArm()
-            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.cmd_forward(push_distance)
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
@@ -250,7 +269,7 @@ class ArmService(Node):
             self.move_arm_down()
             time.sleep(0.2)
             self.slightlyArm()
-            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.cmd_forward(push_distance)
             self.close_arm()
             self.stack_loaded += 1
         else:
