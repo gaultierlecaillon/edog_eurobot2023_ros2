@@ -14,8 +14,6 @@
     {
       "name": "Opening",
       "actions": [
-        { "waiting_tirette": "True" },
-        { "waiting_tirette": "False" },
         { "forward": "170" },
         { "grab": "" },
         { "forward": "170" },
