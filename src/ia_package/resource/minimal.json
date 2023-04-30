@@ -8,7 +8,9 @@
     {
       "name": "Robot Initialization",
       "actions": [
-        { "calibrate": "True" }
+        { "calibrate": "True" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {

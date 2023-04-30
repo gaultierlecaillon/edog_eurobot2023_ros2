@@ -23,9 +23,11 @@ class ArmService(Node):
     step = 23  # Step GPIO Pin
     EN_pin = 24  # enable pin (LOW to enable)
     arm_offset = {
-        "open": 15,
+        "open": 22,
         "slightly": 65,
-        "close": 80
+        "close": 85,
+        "servo0_offset": -3,
+        "servo1_offset": 0,
     }
 
     # Node State
@@ -187,10 +189,11 @@ class ArmService(Node):
         self.open_arm()
         self.move_arm_down()
 
-        # self.cmd_rotate(-35)
+        GPIO.output(self.EN_pin, GPIO.HIGH)
+
         response.success = True
         return response
-    
+
     def arm_drop_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
@@ -216,31 +219,45 @@ class ArmService(Node):
 
         if self.stack_loaded == 0:
             self.slightlyArm()
-            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.cmd_forward(push_distance)
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
             self.stack_loaded += 1
-        elif self.stack_loaded > 0:
+        elif self.stack_loaded == 1:
             self.open_arm()
             time.sleep(0.5)
             self.move_arm_down()
             time.sleep(0.2)
             self.slightlyArm()
-            self.cmd_forward(push_distance)  # Then goto + 20mm
+            self.cmd_forward(push_distance)
             self.close_arm()
             time.sleep(0.5)
             self.move_arm_up()
+            self.stack_loaded += 1
+        elif self.stack_loaded == 2:
+            self.open_arm()
+            time.sleep(0.5)
+            self.move_arm_down()
+            time.sleep(0.2)
+            self.slightlyArm()
+            self.cmd_forward(push_distance)
+            self.close_arm()
+            self.stack_loaded += 1
         else:
             self.get_logger().fatal(
                 f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
             # exit(1)
 
+        # clean
+        # GPIO.output(self.EN_pin, GPIO.HIGH)
+        # GPIO.cleanup()
+
         response.success = True
         return response
 
     def move_arm(self, number_of_cake):
-        step = number_of_cake * 90
+        step = number_of_cake * 110
         if step > 360:
             step = 360
         delta = step - self.arm_position
@@ -275,19 +292,19 @@ class ArmService(Node):
         self.arm_position = 0
 
     def close_arm(self):
-        self.kit.servo[0].angle = self.arm_offset['close']
-        self.kit.servo[1].angle = 180 - self.arm_offset['close']
+        self.kit.servo[0].angle = self.arm_offset['close'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['close'] + self.arm_offset['servo1_offset']
 
     def open_arm(self):
-        self.kit.servo[0].angle = self.arm_offset['open']
-        self.kit.servo[1].angle = 180 - self.arm_offset['open']
+        self.kit.servo[0].angle = self.arm_offset['open'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['open'] + self.arm_offset['servo1_offset']
         time.sleep(0.15)
-        self.kit.servo[0].angle = self.arm_offset['open'] + 2
-        self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2)
+        self.kit.servo[0].angle = self.arm_offset['open'] + 2 + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2) + self.arm_offset['servo1_offset']
 
     def slightlyArm(self):
-        self.kit.servo[0].angle = self.arm_offset['slightly']
-        self.kit.servo[1].angle = 180 - self.arm_offset['slightly']
+        self.kit.servo[0].angle = self.arm_offset['slightly'] + self.arm_offset['servo0_offset']
+        self.kit.servo[1].angle = 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']
 
 
 def main(args=None):
