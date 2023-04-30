@@ -94,121 +94,103 @@ class ArmService(Node):
         self.get_logger().info(f"Service starting process arm_unstack_callback function (request:{request})")
         GPIO.output(self.EN_pin, GPIO.LOW)
 
-        self.close_arm()
-        time.sleep(2)
-
         angle = 45
         forward = 150
 
-        #depose Pile 1 Cake 1
+        # depose Pile 1 Cake 1
         self.slightlyArm()
-        time.sleep(0.3)
+        time.sleep(0.2)
         self.move_arm(1)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm(2)
-        self.cmd_forward(-forward)
-        time.sleep(1.7)
-        self.cmd_rotate(-angle)
+        self.cmd_forward(-forward)  # instantaneous
+        self.cmd_rotate(-angle)  # instantaneous but wait for cmd_forward to finsh
+        time.sleep(1)
         self.move_arm_down()
 
-        #depose Pile 2 Cake 1
-        self.cmd_forward(forward)
-        time.sleep(1.5)
+        # depose Pile 2 Cake 1
+        self.cmd_forward(forward)  # instantaneous but wait for
+        time.sleep(1.7)
         self.slightlyArm()
-        time.sleep(0.3)
+        time.sleep(0.2)
         self.move_arm(1)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm(2)
-        self.cmd_forward(-forward)
-        time.sleep(1.7)
+        time.sleep(0.1)
+        self.cmd_forward(-forward)  # instantaneous
+        time.sleep(1)
         self.move_arm_down()
 
-        #depose Pile 3 Cake 1 et 2
-        self.cmd_rotate(-angle)
-        self.cmd_forward(forward)
-        time.sleep(1.5)
+        # depose Pile 3 Cake 1 et 2
+        self.cmd_rotate(-angle)  # instantaneous but wait for
+        self.cmd_forward(forward)  # instantaneous but wait for
+        time.sleep(1.7)
         self.slightlyArm()
-        time.sleep(0.3)
-        self.move_arm(2)
         time.sleep(0.2)
+        self.move_arm(2)
+        time.sleep(0.3)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm_up()
-        self.cmd_forward(-forward)
-        time.sleep(1.7)
-        self.cmd_rotate(angle)
+        self.cmd_forward(-forward)  # instantaneous
+        self.cmd_rotate(angle)  # instantaneous but wait for
 
-        #depose Pile 2 Cake 2
-        self.cmd_forward(forward)
+        # depose Pile 2 Cake 2
+        time.sleep(1.7)
         self.move_arm(2)
+        self.cmd_forward(forward)  # not wait for rotate, why?
         time.sleep(1.7)
         self.slightlyArm()
-        time.sleep(0.3)
-        self.move_arm(2)
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
-        self.move_arm_up()
+        self.move_arm(3)
         self.cmd_forward(-forward)
-        time.sleep(1.7)
         self.cmd_rotate(angle)
 
         # depose Pile 1 Cake 2 et 3
+        time.sleep(1.7)
         self.cmd_forward(forward)
-        time.sleep(2)
+        time.sleep(1.7)
         self.slightlyArm()
-        time.sleep(0.3)
-        self.move_arm(3)
         time.sleep(0.2)
+        self.move_arm(3)
+        time.sleep(0.3)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm_up()
-        self.cmd_forward(-forward)
-        time.sleep(1.7)
+        self.cmd_forward(-forward)  # instant
         self.cmd_rotate(-angle)
 
         # depose Pile 2 Cake 3
+        time.sleep(1.7)
         self.cmd_forward(forward)
-        time.sleep(1.8)
+        time.sleep(1.7)
         self.slightlyArm()
-        time.sleep(0.3)
-        self.move_arm(3)
         time.sleep(0.2)
+        self.move_arm(3)
+        time.sleep(0.3)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)
-        time.sleep(1.7)
         self.cmd_rotate(-angle)
 
         # depose Pile 3 Cake 3
+        time.sleep(1.7)
         self.cmd_forward(forward)
         time.sleep(1.7)
         self.open_arm()
-        time.sleep(0.1)
         self.move_arm_down()
-        time.sleep(0.2)
-        self.close_arm()
-        time.sleep(0.3)
-        self.cmd_forward(-forward)
-        time.sleep(1.7)
-        self.cmd_rotate(67.5)
-        time.sleep(1.7)
-        self.open_arm()
-        self.cmd_forward(forward - 75)
 
-
-
-
-
-        #self.cmd_rotate(-35)
+        # self.cmd_rotate(-35)
         response.success = True
         return response
-
+    
     def arm_drop_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
@@ -254,13 +236,9 @@ class ArmService(Node):
                 f"Unknown arm setup (arm_position:{self.arm_position}, stack_loaded:{self.stack_loaded})")
             # exit(1)
 
-        # clean
-        GPIO.output(self.EN_pin, GPIO.HIGH)
-        # GPIO.cleanup()
-
         response.success = True
         return response
-    
+
     def move_arm(self, number_of_cake):
         step = number_of_cake * 90
         if step > 360:
