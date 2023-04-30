@@ -148,6 +148,7 @@ class ArmService(Node):
 
         # depose Pile 2 Cake 2
         self.cmd_forward(forward)
+        time.sleep(1.7)
         self.move_arm(2)
         time.sleep(1.7)
         self.slightlyArm()
