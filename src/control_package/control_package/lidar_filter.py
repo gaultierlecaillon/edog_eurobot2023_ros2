@@ -4,9 +4,11 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from example_interfaces.msg import String
+from std_msgs.msg import Bool
 import numpy
+import math
 
-#Led
+# Led
 import board
 import neopixel
 from random import randint
@@ -23,7 +25,8 @@ class LidarFilter(Node):
         self.min_distance = min_distance
 
         # Publish filtered ranges
-        self.publisher_ = self.create_publisher(LaserScan, "filter_scan_topic", 10)
+        self.filter_scan_publisher_ = self.create_publisher(LaserScan, "filter_scan_topic", 10)
+        self.emergency_stop_publisher_ = self.create_publisher(Bool, "emergency_stop_topic", 10)
 
         self.get_logger().info('LidarFilter node has started')
 
@@ -47,8 +50,10 @@ class LidarFilter(Node):
                     angle_dict[angle]['total_distance'] += distance
 
                 # Calculate the average distance for the current angle
-                angle_dict[angle]['average_distance'] = round(angle_dict[angle]['total_distance'] / angle_dict[angle]['count'], 2)
+                angle_dict[angle]['average_distance'] = round(
+                    angle_dict[angle]['total_distance'] / angle_dict[angle]['count'], 2)
 
+                '''
                 print(
                     len(ranges_list),
                     "tic:", index,
@@ -57,6 +62,8 @@ class LidarFilter(Node):
                     '| count:', angle_dict[angle]['count'],
                     '| average_distance:', angle_dict[angle]['average_distance']
                 )
+                '''
+
         # Initialize angle_ranges list with the same length as ranges_list
         angle_ranges = [0] * len(ranges_list)
 
@@ -67,6 +74,8 @@ class LidarFilter(Node):
 
             if angle in angle_dict:
                 angle_ranges[index] = angle_dict[angle]['average_distance']
+
+        self.check_emergency_stop(angle_ranges)
 
         filtered_scan = LaserScan(
             header=msg.header,
@@ -79,13 +88,31 @@ class LidarFilter(Node):
             range_max=self.max_distance,
             ranges=angle_ranges,
             intensities=msg.intensities)
-        self.publisher_.publish(filtered_scan)
+        self.filter_scan_publisher_.publish(filtered_scan)
+
+    def check_emergency_stop(self, angle_ranges):
+        for index, distance in enumerate(angle_ranges):
+            if self.max_distance > distance > self.min_distance:
+                index_offset = (index + 900) % 1800
+                angle = int(360 - index_offset / 5)
+
+                # Convert polar coordinates to Cartesian coordinates
+                angle_rad = numpy.radians(angle)
+                x = distance * numpy.cos(angle_rad)  # in m
+                y = distance * numpy.sin(angle_rad)  # in m
+
+                if self.min_distance < x < self.max_distance and -0.3 < y < 0.3:
+                    #self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
+                    # Publish emergency stop status
+                    emergency_stop_msg = Bool()
+                    emergency_stop_msg.data = True
+                    self.emergency_stop_publisher_.publish(emergency_stop_msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    max_distance = 0.4  # distance in m
-    min_distance = 0.2  # distance in m
+    max_distance = 0.6  # distance in m
+    min_distance = 0.16  # distance in m
     node = LidarFilter(max_distance, min_distance)
 
     rclpy.spin(node)
