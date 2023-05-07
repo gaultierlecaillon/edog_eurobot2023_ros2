@@ -2,6 +2,8 @@
 import time
 import json
 import rclpy
+import threading
+
 from rclpy.node import Node
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
@@ -33,7 +35,8 @@ class MotionService(Node):
 
         self.odrv0 = None
         self.loadCalibrationConfig()
-        
+        self.motion_completed = False
+
         self.calibration_service_ = self.create_service(
             BoolBool,
             "cmd_calibration_service",
@@ -65,6 +68,31 @@ class MotionService(Node):
         '''
 
         self.get_logger().info("Motion Service has been started.")
+
+    def monitor_motion_completion(self, target_position_0, target_position_1):
+        start = time.time()
+        timeout = 5  # Set a timeout duration in seconds
+
+        while True:
+            # Calculate the position error for both axes
+            pos_error_0 = abs(self.target_0 + target_position_0 - self.odrv0.axis0.encoder.pos_estimate)
+            pos_error_1 = abs(self.target_1 + target_position_1 - self.odrv0.axis1.encoder.pos_estimate)
+
+            # Check if both axes have reached their target positions within the tolerance range
+            if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
+                self.get_logger().warn(
+                    f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+                self.motion_completed = True
+                break
+
+            # Check if the operation has timed out
+            if time.time() - start > timeout:
+                self.get_logger().error(
+                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
+                self.motion_completed = False
+                break
+            time.sleep(0.1)
+
 
     def loadCalibrationConfig(self):
         with open('/home/edog/ros2_ws/src/control_package/resource/calibration.json') as file:
@@ -224,36 +252,20 @@ class MotionService(Node):
     def waitForMovementCompletion(self, target_position_0, target_position_1):
         self.get_logger().info(
             f"[WaitForMovementCompletion] (target_position_0={target_position_0} and target_position_1={target_position_1})")
-        # self.get_logger().info(
-        #    f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
 
+        self.motion_completed = False
+        monitor_thread = threading.Thread(target=self.monitor_motion_completion,
+                                          args=(target_position_0, target_position_1))
+        monitor_thread.start()
 
-        start = time.time()
-        timeout = 5  # Set a timeout duration in seconds
-
-        while True:
-            if target_position_0 == 0 and target_position_1 == 0:
-                break
-
-            # Calculate the position error for both axes
-            pos_error_0 = abs(self.target_0 + target_position_0 - self.odrv0.axis0.encoder.pos_estimate)
-            pos_error_1 = abs(self.target_1 + target_position_1 - self.odrv0.axis1.encoder.pos_estimate)
-
-            # Check if both axes have reached their target positions within the tolerance range
-            if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-                self.get_logger().warn(
-                    f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
-                break
-
-            # Check if the operation has timed out
-            if time.time() - start > timeout:
-                self.get_logger().error(
-                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
-                break
+        while not self.motion_completed:
+            # Add any checks or operations you want to perform while waiting for the motion to complete
             time.sleep(0.1)
 
         self.target_0 = self.odrv0.axis0.encoder.pos_estimate
         self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+
+        monitor_thread.join()
 
     def setPIDGains(self):
         with open('/home/edog/ros2_ws/src/control_package/resource/odrive_config.json') as file:
