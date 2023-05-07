@@ -55,12 +55,14 @@ class MotionService(Node):
             self.rotate_callback)
 
         # Subscribe to the "emergency_stop_topic"
+        '''
         self.is_stopped_subscriber_ = self.create_subscription(
             Bool,
             "emergency_stop_topic",
             self.emergency_stop_callback,
             10)
         self.is_stopped = False
+        '''
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -109,12 +111,14 @@ class MotionService(Node):
         time.sleep(0.2)
         return response
 
+    '''
     def emergency_stop_callback(self, msg):
         if msg.data and not self.is_stopped:
             self.is_stopped = True
             self.get_logger().error("Obstacle in front of the robot")
             self.odrv0.axis0.controller.move_incremental(0, True)
             self.odrv0.axis1.controller.move_incremental(0, True)
+    '''
 
     def forward_callback(self, request, response):
         self.get_logger().info(f"\n")
@@ -203,12 +207,10 @@ class MotionService(Node):
 
         self.get_logger().warn(f"[MotionForward] (increment_mm={increment_mm} mm, increment_pos={increment_pos} pos)")
 
-        if not self.is_stopped:
-            print("11111111111111111")
-            self.odrv0.axis0.controller.move_incremental(increment_pos, False)
-            self.odrv0.axis1.controller.move_incremental(increment_pos, False)
+        self.odrv0.axis0.controller.move_incremental(increment_pos, False)
+        self.odrv0.axis1.controller.move_incremental(increment_pos, False)
 
-            self.print_robot_infos()
+        self.print_robot_infos()
         return increment_pos, increment_pos
 
     def getEncoderIndex(self, axis):
@@ -230,7 +232,7 @@ class MotionService(Node):
         timeout = 5  # Set a timeout duration in seconds
 
         while True:
-            if target_position_0 == 0 and target_position_1 == 1:
+            if target_position_0 == 0 and target_position_1 == 0:
                 break
 
             # Calculate the position error for both axes
