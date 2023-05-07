@@ -2,8 +2,6 @@
 import time
 import json
 import rclpy
-import threading
-
 from rclpy.node import Node
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
@@ -22,7 +20,6 @@ class MotionService(Node):
     cpr = 8192
     cpr_error_tolerance = 0.02
 
-
     target_0 = 0
     target_1 = 0
 
@@ -33,9 +30,9 @@ class MotionService(Node):
     def __init__(self):
         super().__init__("motion_service")
 
+        self.emergency_triggered = False
         self.odrv0 = None
         self.loadCalibrationConfig()
-        self.motion_completed = False
 
         self.calibration_service_ = self.create_service(
             BoolBool,
@@ -58,41 +55,13 @@ class MotionService(Node):
             self.rotate_callback)
 
         # Subscribe to the "emergency_stop_topic"
-        '''
-        self.is_stopped_subscriber_ = self.create_subscription(
+        self.create_subscription(
             Bool,
             "emergency_stop_topic",
             self.emergency_stop_callback,
             10)
-        self.is_stopped = False
-        '''
 
         self.get_logger().info("Motion Service has been started.")
-
-    def monitor_motion_completion(self, target_position_0, target_position_1):
-        start = time.time()
-        timeout = 5  # Set a timeout duration in seconds
-
-        while True:
-            # Calculate the position error for both axes
-            pos_error_0 = abs(self.target_0 + target_position_0 - self.odrv0.axis0.encoder.pos_estimate)
-            pos_error_1 = abs(self.target_1 + target_position_1 - self.odrv0.axis1.encoder.pos_estimate)
-
-            # Check if both axes have reached their target positions within the tolerance range
-            if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-                self.get_logger().warn(
-                    f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
-                self.motion_completed = True
-                break
-
-            # Check if the operation has timed out
-            if time.time() - start > timeout:
-                self.get_logger().error(
-                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
-                self.motion_completed = False
-                break
-            time.sleep(0.1)
-
 
     def loadCalibrationConfig(self):
         with open('/home/edog/ros2_ws/src/control_package/resource/calibration.json') as file:
@@ -130,8 +99,8 @@ class MotionService(Node):
             self.odrv0.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
             self.odrv0.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
-        self.setPID()
-        self.setPIDGains()
+        self.setPID("odrive_config.json")
+        self.setPIDGains("odrive_config.json")
 
         response.success = True
         self.get_logger().info(f"request {request}")
@@ -139,21 +108,24 @@ class MotionService(Node):
         time.sleep(0.2)
         return response
 
-    '''
+
     def emergency_stop_callback(self, msg):
-        if msg.data and not self.is_stopped:
-            self.is_stopped = True
+        if msg.data and not self.emergency_triggered:
+            self.setPID("emergency_stop.json")
+            self.setPIDGains("emergency_stop.json")
             self.get_logger().error("Obstacle in front of the robot")
-            self.odrv0.axis0.controller.move_incremental(0, True)
-            self.odrv0.axis1.controller.move_incremental(0, True)
-    '''
+            #self.odrv0.axis0.controller.move_incremental(0, False)
+            #self.odrv0.axis1.controller.move_incremental(0, False)
+            self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
+            self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
+            self.emergency_triggered = True
 
     def forward_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Starting process forward_callback {request}")
 
         increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
-        self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
         self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
         self.print_robot_infos()
@@ -167,7 +139,7 @@ class MotionService(Node):
 
         target_angle = self.r_ + request.angle_deg
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ += target_angle
         self.print_robot_infos()
 
@@ -184,24 +156,25 @@ class MotionService(Node):
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
 
-        self.get_logger().info(f"\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
+        self.get_logger().info(
+            f"\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
 
         # First rotate
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ = target_angle
 
         # Then move forward
 
         increment_0_pos, increment_1_pos = self.motionForward(increment_mm)
-        self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
-        self.x_ += round(increment_mm * math.cos(math.radians(self.r_)),1)
-        self.y_ += round(increment_mm * math.sin(math.radians(self.r_)),1)
+        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 1)
+        self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 1)
 
         # Finally rotate in the final angle
         if request.r != -1:
             increment_0_pos, increment_1_pos = self.motionRotate(request.r)
-            self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+            #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
             self.r_ = request.r
 
         self.get_logger().info(f"request {request}")
@@ -215,7 +188,6 @@ class MotionService(Node):
         rotation_to_do = target_angle - self.r_
         if int(rotation_to_do) == 0:
             return 0, 0
-
 
         # I know after calibration that 360°=838mm
         increment_mm = rotation_to_do * float(self.calibration_config["rotation"]["coef"])
@@ -252,23 +224,38 @@ class MotionService(Node):
     def waitForMovementCompletion(self, target_position_0, target_position_1):
         self.get_logger().info(
             f"[WaitForMovementCompletion] (target_position_0={target_position_0} and target_position_1={target_position_1})")
+        # self.get_logger().info(
+        #    f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
 
-        self.motion_completed = False
-        monitor_thread = threading.Thread(target=self.monitor_motion_completion,
-                                          args=(target_position_0, target_position_1))
-        monitor_thread.start()
+        start = time.time()
+        timeout = 5  # Set a timeout duration in seconds
 
-        while not self.motion_completed:
-            # Add any checks or operations you want to perform while waiting for the motion to complete
+        while True:
+            if target_position_0 == 0 and target_position_1 == 0:
+                break
+
+            # Calculate the position error for both axes
+            pos_error_0 = abs(self.target_0 + target_position_0 - self.odrv0.axis0.encoder.pos_estimate)
+            pos_error_1 = abs(self.target_1 + target_position_1 - self.odrv0.axis1.encoder.pos_estimate)
+
+            # Check if both axes have reached their target positions within the tolerance range
+            if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
+                self.get_logger().warn(
+                    f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+                break
+
+            # Check if the operation has timed out
+            if time.time() - start > timeout:
+                self.get_logger().error(
+                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
+                break
             time.sleep(0.1)
 
         self.target_0 = self.odrv0.axis0.encoder.pos_estimate
         self.target_1 = self.odrv0.axis1.encoder.pos_estimate
 
-        monitor_thread.join()
-
-    def setPIDGains(self):
-        with open('/home/edog/ros2_ws/src/control_package/resource/odrive_config.json') as file:
+    def setPIDGains(self, config_filename):
+        with open('/home/edog/ros2_ws/src/control_package/resource/' + config_filename) as file:
             config = json.load(file)
         self.get_logger().info(f"[Loading Odrive Config] odrive_config.json")
 
@@ -285,8 +272,8 @@ class MotionService(Node):
         self.odrv0.axis0.controller.config.vel_integrator_gain = vel_integrator_gain  # Velocity integrator gain for axis0
         self.odrv0.axis1.controller.config.vel_integrator_gain = vel_integrator_gain  # Velocity integrator gain for axis1
 
-    def setPID(self):
-        with open('/home/edog/ros2_ws/src/control_package/resource/odrive_config.json') as file:
+    def setPID(self, config_filename):
+        with open('/home/edog/ros2_ws/src/control_package/resource/' + config_filename) as file:
             config = json.load(file)
         self.get_logger().info(f"[Loading Odrive Config] odrive_config.json")
 
