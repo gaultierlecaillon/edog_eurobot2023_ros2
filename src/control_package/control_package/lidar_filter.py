@@ -77,6 +77,7 @@ class LidarFilter(Node):
 
         self.check_emergency_stop(angle_ranges)
 
+        '''
         filtered_scan = LaserScan(
             header=msg.header,
             angle_min=msg.angle_min,
@@ -89,6 +90,7 @@ class LidarFilter(Node):
             ranges=angle_ranges,
             intensities=msg.intensities)
         self.filter_scan_publisher_.publish(filtered_scan)
+        '''
 
     def check_emergency_stop(self, angle_ranges):
         for index, distance in enumerate(angle_ranges):

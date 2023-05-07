@@ -6,22 +6,23 @@
   "startingPos": "0,0,0",
   "strategy": [
     {
-      "name": "Robot Initialization",
+      "name": "Starting Blocks",
       "actions": [
-        { "calibrate": "True" }
+        { "calibrate": "True" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {
       "name": "Opening",
       "actions": [
-        { "forward": "340" },
+        { "forward": "170" },
         { "grab": "" },
-        { "forward": "-370" },
-        { "goto": "0,-170,-1" },
+        { "forward": "180" },
         { "grab": "" },
-        { "goto": "0,-370,-1" },
+        { "goto": "770,-380,-1" },
         { "grab": "" },
-        { "goto": "200,-700,-100" },
+        { "goto": "50,-250,180" },
         { "unstack": "" }
       ]
     }

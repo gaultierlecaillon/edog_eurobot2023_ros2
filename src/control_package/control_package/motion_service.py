@@ -8,6 +8,7 @@ from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import BoolBool
 from robot_interfaces.srv import IntBool
 from robot_interfaces.srv import FloatBool
+from std_msgs.msg import Bool
 
 # odrive
 import odrive
@@ -41,7 +42,7 @@ class MotionService(Node):
         self.position_service_ = self.create_service(
             CmdPositionService,
             "cmd_position_service",
-            self.position_callback)
+            self.goto_callback)
 
         self.forward_service_ = self.create_service(
             IntBool,
@@ -52,6 +53,14 @@ class MotionService(Node):
             FloatBool,
             "cmd_rotate_service",
             self.rotate_callback)
+
+        # Subscribe to the "emergency_stop_topic"
+        self.is_stopped_subscriber_ = self.create_subscription(
+            Bool,
+            "emergency_stop_topic",
+            self.emergency_stop_callback,
+            10)
+        self.is_stopped = False
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -79,7 +88,7 @@ class MotionService(Node):
 
             self.get_logger().warn(f"Robot already in closed loop control")
         else:
-            self.get_logger().info(f"Starting calibration...")            
+            self.get_logger().info(f"Starting calibration...")
             self.odrv0.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
             self.odrv0.axis1.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
 
@@ -99,6 +108,13 @@ class MotionService(Node):
         self.get_logger().info(f"response {response}")
         time.sleep(0.2)
         return response
+
+    def emergency_stop_callback(self, msg):
+        if msg.data and not self.is_stopped:
+            self.is_stopped = True
+            self.get_logger().error("Obstacle in front of the robot")
+            self.odrv0.axis0.controller.move_incremental(0, True)
+            self.odrv0.axis1.controller.move_incremental(0, True)
 
     def forward_callback(self, request, response):
         self.get_logger().info(f"\n")
@@ -126,9 +142,9 @@ class MotionService(Node):
         response.success = True
         return response
 
-    def position_callback(self, request, response):
+    def goto_callback(self, request, response):
         self.get_logger().info(f"\n")
-        self.get_logger().info(f"Starting process position_callback {request}")
+        self.get_logger().info(f"Starting process goto_callback {request}")
 
         # Calculate the target_angle in degrees to reach the point(x,y)
         target_angle = math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
@@ -187,10 +203,12 @@ class MotionService(Node):
 
         self.get_logger().warn(f"[MotionForward] (increment_mm={increment_mm} mm, increment_pos={increment_pos} pos)")
 
-        self.odrv0.axis0.controller.move_incremental(increment_pos, False)
-        self.odrv0.axis1.controller.move_incremental(increment_pos, False)
+        if not self.is_stopped:
+            print("11111111111111111")
+            self.odrv0.axis0.controller.move_incremental(increment_pos, False)
+            self.odrv0.axis1.controller.move_incremental(increment_pos, False)
 
-        self.print_robot_infos()
+            self.print_robot_infos()
         return increment_pos, increment_pos
 
     def getEncoderIndex(self, axis):
