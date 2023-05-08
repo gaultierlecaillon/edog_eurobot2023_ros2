@@ -18,9 +18,10 @@ from rclpy.executors import MultiThreadedExecutor
 
 
 class LidarFilter(Node):
-    def __init__(self, max_distance, min_distance):
+    def __init__(self, max_distance, min_distance, emergency_distance):
         super().__init__("lidar_filter")
         self.subscriber_ = self.create_subscription(LaserScan, 'scan', self.scan_callback, 10)
+        self.emergency_distance = emergency_distance
         self.max_distance = max_distance
         self.min_distance = min_distance
 
@@ -93,10 +94,9 @@ class LidarFilter(Node):
         '''
 
     def check_emergency_stop(self, angle_ranges):
+        emergency_stop_msg = Bool()
         for index, distance in enumerate(angle_ranges):
-            emergency_stop_msg = Bool()
             emergency_stop_msg.data = False
-
             if self.max_distance > distance > self.min_distance:
                 index_offset = (index + 900) % 1800
                 angle = int(360 - index_offset / 5)
@@ -106,18 +106,21 @@ class LidarFilter(Node):
                 x = distance * numpy.cos(angle_rad)  # in m
                 y = distance * numpy.sin(angle_rad)  # in m
 
-                if self.min_distance < x < self.max_distance and -0.3 < y < 0.3: #todo to 40
+                if self.min_distance < x < self.emergency_distance and -0.3 < y < 0.3: #todo to 40
                     #self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
                     emergency_stop_msg.data = True
+                    self.emergency_stop_publisher_.publish(emergency_stop_msg)
+                    return 
 
-                self.emergency_stop_publisher_.publish(emergency_stop_msg)
+        self.emergency_stop_publisher_.publish(emergency_stop_msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    max_distance = 0.6  # distance in m
-    min_distance = 0.16  # distance in m
-    node = LidarFilter(max_distance, min_distance)
+    emergency_distance = 0.6  # distance in m
+    min_distance = 0.2  # distance in m
+    max_distance = 2.0  # distance in m
+    node = LidarFilter(max_distance, min_distance, emergency_distance)
 
     rclpy.spin(node)
     rclpy.shutdown()

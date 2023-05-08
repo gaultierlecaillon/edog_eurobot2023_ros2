@@ -125,8 +125,10 @@ class MotionService(Node):
                 self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
                 self.get_logger().error("Obstacle in front of the robot")
                 self.emergency_triggered = True
-            #elif msg.data and self.emergency_triggered:
-                #self.get_logger().info("waiting remove obstacle")
+            elif not msg.data and self.emergency_triggered:
+                self.get_logger().info("Obstavle gone !")
+            elif msg.data and self.emergency_triggered:
+              self.get_logger().info("waiting to move obs !")
             elif self.is_motion_complete():
                 self.target_0 = self.odrv0.axis0.encoder.pos_estimate
                 self.target_1 = self.odrv0.axis1.encoder.pos_estimate
@@ -175,7 +177,6 @@ class MotionService(Node):
         self.get_logger().info(f"Starting process forward_callback {request}")
 
         increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
-        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
         self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
         self.print_robot_infos()
@@ -188,8 +189,7 @@ class MotionService(Node):
         self.get_logger().info(f"Starting process rotate_callback {request}")
 
         target_angle = self.r_ + request.angle_deg
-        increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.motionRotate(target_angle)
         self.r_ += target_angle
         self.print_robot_infos()
 
@@ -210,21 +210,18 @@ class MotionService(Node):
             f"\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
 
         # First rotate
-        increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.motionRotate(target_angle)
         self.r_ = target_angle
 
         # Then move forward
 
-        increment_0_pos, increment_1_pos = self.motionForward(increment_mm)
-        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.motionForward(increment_mm)
         self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 1)
         self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 1)
 
         # Finally rotate in the final angle
         if request.r != -1:
-            increment_0_pos, increment_1_pos = self.motionRotate(request.r)
-            # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+            self.motionRotate(request.r)
             self.r_ = request.r
 
         self.get_logger().info(f"request {request}")
@@ -271,39 +268,6 @@ class MotionService(Node):
         self.get_logger().info(f"Encoders reset")
         self.odrv0.axis0.encoder.set_linear_count(0)
         self.odrv0.axis1.encoder.set_linear_count(0)
-
-    def waitForMovementCompletion(self, target_position_0, target_position_1):
-        self.get_logger().info(
-            f"[WaitForMovementCompletion] (target_position_0={target_position_0} and target_position_1={target_position_1})")
-        # self.get_logger().info(
-        #    f"[Detail] (real_0_index={self.getEncoderIndex(self.odrv0.axis0)} and real_1_index={self.getEncoderIndex(self.odrv0.axis1)})")
-
-        start = time.time()
-        timeout = 5  # Set a timeout duration in seconds
-
-        while True:
-            if target_position_0 == 0 and target_position_1 == 0:
-                break
-
-            # Calculate the position error for both axes
-            pos_error_0 = abs(self.target_0 + target_position_0 - self.odrv0.axis0.encoder.pos_estimate)
-            pos_error_1 = abs(self.target_1 + target_position_1 - self.odrv0.axis1.encoder.pos_estimate)
-
-            # Check if both axes have reached their target positions within the tolerance range
-            if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-                self.get_logger().warn(
-                    f"Motion completed in {time.time() - start:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
-                break
-
-            # Check if the operation has timed out
-            if time.time() - start > timeout:
-                self.get_logger().error(
-                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
-                break
-            time.sleep(0.1)
-
-        self.target_0 = self.odrv0.axis0.encoder.pos_estimate
-        self.target_1 = self.odrv0.axis1.encoder.pos_estimate
 
     def setPIDGains(self, config_filename):
         with open('/home/edog/ros2_ws/src/control_package/resource/' + config_filename) as file:
