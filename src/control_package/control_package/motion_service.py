@@ -30,6 +30,13 @@ class MotionService(Node):
     def __init__(self):
         super().__init__("motion_service")
 
+        self.current_motion = {
+            'in_motion': False,
+            'start': None,
+            'target_position_0': 0,
+            'target_position_1': 0,
+        }
+
         self.emergency_triggered = False
         self.odrv0 = None
         self.loadCalibrationConfig()
@@ -108,27 +115,63 @@ class MotionService(Node):
         time.sleep(0.2)
         return response
 
-
     def emergency_stop_callback(self, msg):
-        if msg.data and not self.emergency_triggered:
-            self.setPID("emergency_stop.json")
-            self.setPIDGains("emergency_stop.json")
-            self.get_logger().error("Obstacle in front of the robot")
-            #self.odrv0.axis0.controller.move_incremental(0, False)
-            #self.odrv0.axis1.controller.move_incremental(0, False)
-            self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
-            self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-            self.emergency_triggered = True
+
+        if self.current_motion['in_motion']:
+
+            if msg.data and not self.emergency_triggered:  # if the robot is moving and a obstacle and not already triggered
+                self.setPID("emergency_stop.json")
+                self.setPIDGains("emergency_stop.json")
+                self.get_logger().error("Obstacle in front of the robot")
+                self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
+                self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
+                self.emergency_triggered = True
+
+            # Is motion completed ?
+            if self.is_motion_complete():
+                self.current_motion['in_motion'] = False
+                self.current_motion['start'] = None
+
+    def is_motion_complete(self):
+
+        if self.current_motion['target_position_0'] == 0 and self.current_motion['target_position_1'] == 0:
+            return True
+
+        # Calculate the position error for both axes
+        pos_error_0 = abs(
+            self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
+        pos_error_1 = abs(
+            self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
+
+        # Check if both axes have reached their target positions within the tolerance range
+        if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
+            self.get_logger().warn(
+                f"Motion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+            return True
+
+        timeout = 10
+        if time.time() - self.current_motion['start'] > timeout:
+            return True
+
+        return False
+
+    def motion_has_started(self, target_position_0, target_position_1):
+        self.get_logger().warn("Motion has started !");
+        self.current_motion['in_motion'] = True
+        self.current_motion['start'] = time.time()
+        self.current_motion['target_position_0'] = target_position_0
+        self.current_motion['target_position_1'] = target_position_1
 
     def forward_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Starting process forward_callback {request}")
 
         increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
-        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        self.motion_has_started(increment_0_pos, increment_1_pos)
+        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
         self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
-        self.print_robot_infos()
+        # self.print_robot_infos()
 
         response.success = True
         return response
@@ -139,7 +182,7 @@ class MotionService(Node):
 
         target_angle = self.r_ + request.angle_deg
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ += target_angle
         self.print_robot_infos()
 
@@ -161,20 +204,20 @@ class MotionService(Node):
 
         # First rotate
         increment_0_pos, increment_1_pos = self.motionRotate(target_angle)
-        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.r_ = target_angle
 
         # Then move forward
 
         increment_0_pos, increment_1_pos = self.motionForward(increment_mm)
-        #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+        # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
         self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 1)
         self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 1)
 
         # Finally rotate in the final angle
         if request.r != -1:
             increment_0_pos, increment_1_pos = self.motionRotate(request.r)
-            #self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
+            # self.waitForMovementCompletion(increment_0_pos, increment_1_pos)
             self.r_ = request.r
 
         self.get_logger().info(f"request {request}")

@@ -94,6 +94,9 @@ class LidarFilter(Node):
 
     def check_emergency_stop(self, angle_ranges):
         for index, distance in enumerate(angle_ranges):
+            emergency_stop_msg = Bool()
+            emergency_stop_msg.data = False
+
             if self.max_distance > distance > self.min_distance:
                 index_offset = (index + 900) % 1800
                 angle = int(360 - index_offset / 5)
@@ -103,18 +106,19 @@ class LidarFilter(Node):
                 x = distance * numpy.cos(angle_rad)  # in m
                 y = distance * numpy.sin(angle_rad)  # in m
 
-                if self.min_distance < x < self.max_distance and -0.3 < y < 0.3:
+                if self.min_distance < x < self.max_distance and -0.1 < y < 0.1: #todo to 40
                     #self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
-                    # Publish emergency stop status
-                    emergency_stop_msg = Bool()
                     emergency_stop_msg.data = True
-                    self.emergency_stop_publisher_.publish(emergency_stop_msg)
+
+            self.emergency_stop_publisher_.publish(emergency_stop_msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
     max_distance = 0.6  # distance in m
     min_distance = 0.16  # distance in m
+    max_distance = 0.5  # distance in m
+    min_distance = 0.1  # distance in m
     node = LidarFilter(max_distance, min_distance)
 
     rclpy.spin(node)
