@@ -34,7 +34,8 @@ class MotionService(Node):
             'in_motion': False,
             'start': None,
             'target_position_0': 0,
-            'target_position_1': 0
+            'target_position_1': 0,
+            'emergency': False
         }
 
         self.emergency_triggered = False
@@ -116,28 +117,32 @@ class MotionService(Node):
         return response
 
     def emergency_stop_callback(self, msg):
+        #if self.current_motion['in_motion']:
+        # if the robot is moving and obstacle
+        if msg.data and not self.emergency_triggered:
+            #self.setPID("emergency_stop.json")
+            #self.setPIDGains("emergency_stop.json")
+            self.get_logger().error("Obstacle in front of the robot")
+            #self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
+            #self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
+            self.emergency_triggered = True
 
-        if self.current_motion['in_motion']:
-            if msg.data and not self.emergency_triggered:  # if the robot is moving and a obstacle and not already triggered
-                self.setPID("emergency_stop.json")
-                self.setPIDGains("emergency_stop.json")
-                self.get_logger().error("Obstacle in front of the robot")
-                self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
-                self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-                self.emergency_triggered = True
+        elif msg.data and self.emergency_triggered:
+            self.get_logger().info("waiting remove obstacle")
+        '''
+        elif self.is_motion_complete():
+            self.target_0 = self.odrv0.axis0.encoder.pos_estimate
+            self.target_1 = self.odrv0.axis1.encoder.pos_estimate
 
-            # Is motion completed ?
-            if self.is_motion_complete():
-                self.get_logger().error("motion completed !")
-                self.target_0 = self.odrv0.axis0.encoder.pos_estimate
-                self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+            self.current_motion['in_motion'] = False
+            self.current_motion['start'] = None
+            self.current_motion['target_position_0'] = 0
+            self.current_motion['target_position_1'] = 0
+            
+            self.print_robot_infos()
+        '''
 
-                self.current_motion['in_motion'] = False
-                self.current_motion['start'] = None
-                self.current_motion['target_position_0'] = 0
-                self.current_motion['target_position_1'] = 0
 
-                self.print_robot_infos()
 
     def is_motion_complete(self):
         if (self.current_motion['target_position_0'] == 0 and self.current_motion['target_position_1'] == 0) or not \
@@ -149,11 +154,10 @@ class MotionService(Node):
             self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
         pos_error_1 = abs(
             self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
-        self.get_logger().info(
-            f"Motion started from {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+        # self.get_logger().info(f"Motion started from {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
         # Check if both axes have reached their target positions within the tolerance range
         if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-            self.get_logger().error(
+            self.get_logger().info(
                 f"Motion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
             return True
 
@@ -178,9 +182,6 @@ class MotionService(Node):
         self.get_logger().info(f"\nWaiting motion to complete before forward_callback {request}")
         self.get_logger().info(f"Starting motion forward_callback {request}")
         self.motionForward(request.distance_mm)
-
-        while not self.is_motion_complete():
-            time.sleep(0.05)
 
         self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
         self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
@@ -257,6 +258,13 @@ class MotionService(Node):
         return increment_pos, -increment_pos
 
     def motionForward(self, increment_mm):
+        if self.emergency_triggered:
+            self.get_logger().error(f"[MotionForward] LOCKED EMMERGENCY")
+            time.sleep(50)
+
+        while not self.is_motion_complete():
+            time.sleep(0.05)
+
         increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm  # todo
 
         self.get_logger().warn(f"[MotionForward] (increment_mm={increment_mm} mm, increment_pos={increment_pos} pos)")
