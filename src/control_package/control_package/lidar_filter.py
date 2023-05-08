@@ -110,7 +110,7 @@ class LidarFilter(Node):
                     #self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
                     emergency_stop_msg.data = True
 
-            self.emergency_stop_publisher_.publish(emergency_stop_msg)
+                self.emergency_stop_publisher_.publish(emergency_stop_msg)
 
 
 def main(args=None):
