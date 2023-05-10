@@ -26,6 +26,7 @@ set(msg_files
 
 set(srv_files
   "srv/CmdPositionService.srv"
+  "srv/CmdMotionHasStart.srv"
   "srv/BoolBool.srv"
   "srv/IntBool.srv"
   "srv/NullBool.srv"

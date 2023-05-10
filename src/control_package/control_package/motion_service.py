@@ -5,9 +5,11 @@ import rclpy
 from rclpy.node import Node
 from robot_interfaces.msg import Position
 from robot_interfaces.srv import CmdPositionService
+from robot_interfaces.srv import CmdMotionHasStart
 from robot_interfaces.srv import BoolBool
 from robot_interfaces.srv import IntBool
 from robot_interfaces.srv import FloatBool
+from robot_interfaces.srv import NullBool
 from std_msgs.msg import Bool
 
 # odrive
@@ -18,11 +20,17 @@ import math
 
 class MotionService(Node):
     cpr = 8192
-    cpr_error_tolerance = 0.02
-
     target_0 = 0
     target_1 = 0
-
+    cpr_error_tolerance = 0.02
+    current_motion = {
+        'in_motion': False,
+        'start': None,
+        'target_position_0': 0,
+        'target_position_1': 0,
+        'emergency': False,
+        'evitement': True,
+    }
     x_ = 0  # Current robot x position
     y_ = 0  # Current robot y position
     r_ = 0  # Current robot r target_angle
@@ -30,15 +38,7 @@ class MotionService(Node):
     def __init__(self):
         super().__init__("motion_service")
 
-        self.current_motion = {
-            'in_motion': False,
-            'start': None,
-            'target_position_0': 0,
-            'target_position_1': 0,
-            'emergency': False
-        }
-
-        self.emergency_triggered = False
+        # self.emergency_triggered = False
         self.odrv0 = None
         self.loadCalibrationConfig()
 
@@ -62,12 +62,24 @@ class MotionService(Node):
             "cmd_rotate_service",
             self.rotate_callback)
 
+        self.create_service(
+            CmdMotionHasStart,
+            "motion_has_start",
+            self.motion_has_started)
+
+        self.create_service(
+            NullBool,
+            "is_motion_complete",
+            self.is_motion_complete_callback)
+
         # Subscribe to the "emergency_stop_topic"
+        '''
         self.create_subscription(
             Bool,
             "emergency_stop_topic",
             self.emergency_stop_callback,
             10)
+        '''
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -118,6 +130,7 @@ class MotionService(Node):
 
     def emergency_stop_callback(self, msg):
         if self.current_motion['in_motion']:
+            print("in motion")
             if msg.data and not self.emergency_triggered:
                 self.setPID("emergency_stop.json")
                 self.setPIDGains("emergency_stop.json")
@@ -128,55 +141,21 @@ class MotionService(Node):
             elif not msg.data and self.emergency_triggered:
                 self.get_logger().info("Obstavle gone !")
             elif msg.data and self.emergency_triggered:
-              self.get_logger().info("waiting to move obs !")
-            elif self.is_motion_complete():
-                self.target_0 = self.odrv0.axis0.encoder.pos_estimate
-                self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+                self.get_logger().info("waiting to move obs !")
 
+            '''
+            if self.is_motion_complete():
                 self.current_motion['in_motion'] = False
                 self.current_motion['start'] = None
                 self.current_motion['target_position_0'] = 0
                 self.current_motion['target_position_1'] = 0
-
-    def is_motion_complete(self):
-        if (self.current_motion['target_position_0'] == 0 and self.current_motion['target_position_1'] == 0) or not \
-                self.current_motion['in_motion']:
-            return True
-
-        # Calculate the position error for both axes
-        pos_error_0 = abs(
-            self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
-        pos_error_1 = abs(
-            self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
-        # self.get_logger().info(f"Motion started from {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
-        # Check if both axes have reached their target positions within the tolerance range
-        if pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
-            self.get_logger().info(
-                f"Motion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
-            return True
-
-        timeout = 5
-        if time.time() - self.current_motion['start'] > timeout:
-            self.get_logger().error(
-                f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
-            self.print_robot_infos()
-            return True
-
-        return False
-
-    def motion_has_started(self, target_position_0, target_position_1):
-        self.get_logger().warn("Motion has started !");
-
-        self.current_motion['in_motion'] = True
-        self.current_motion['start'] = time.time()
-        self.current_motion['target_position_0'] = target_position_0
-        self.current_motion['target_position_1'] = target_position_1
+            '''
 
     def forward_callback(self, request, response):
         self.get_logger().info(f"\n")
         self.get_logger().info(f"Starting process forward_callback {request}")
 
-        increment_0_pos, increment_1_pos = self.motionForward(request.distance_mm)
+        self.motionForward(request.distance_mm)
         self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
         self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
         self.print_robot_infos()
@@ -250,16 +229,90 @@ class MotionService(Node):
         return increment_pos, -increment_pos
 
     def motionForward(self, increment_mm):
+
         increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm  # todo
 
         self.get_logger().warn(f"[MotionForward] (increment_mm={increment_mm} mm, increment_pos={increment_pos} pos)")
 
-        self.motion_has_started(increment_pos, increment_pos)
+        # self.motion_has_started(increment_pos, increment_pos)  # todo call motion_complete_service indtead
+
+        service_name = "motion_has_start"
+        client = self.create_client(CmdMotionHasStart, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+        request = CmdMotionHasStart.Request()
+        request.target_position_0 = increment_pos
+        request.target_position_1 = increment_pos
+        request.evitement = True
+        client.call_async(request)
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(increment_pos, False)
 
-        self.print_robot_infos()
-        return increment_pos, increment_pos
+    def is_motion_complete_callback(self, request, response):
+        while not self.is_motion_complete():
+            time.sleep(0.05)
+
+        response.success = True
+        return response
+
+    def motion_has_started(self, request, response):
+        target_position_0 = request.target_position_0
+        target_position_1 = request.target_position_1
+        evitement = request.evitement
+
+        self.get_logger().warn("Motion has started !");
+
+        self.current_motion['in_motion'] = True
+        self.current_motion['start'] = time.time()
+        self.current_motion['target_position_0'] = target_position_0
+        self.current_motion['target_position_1'] = target_position_1
+        self.current_motion['evitement'] = evitement
+
+        response.success = True
+        return response
+
+    def is_motion_complete(self):
+        motion_completed = False
+
+        if self.current_motion['in_motion']:
+            timeout = 5
+
+            pos_error_0 = abs(
+                self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
+            pos_error_1 = abs(
+                self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
+
+            if (self.current_motion['target_position_0'] == 0 and self.current_motion['target_position_1'] == 0) or not \
+                    self.current_motion['in_motion']:
+                motion_completed = True
+
+            # Check if both axes have reached their target positions within the tolerance range
+            elif pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
+                self.get_logger().info(
+                    f"Motion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+                motion_completed = True
+
+            elif time.time() - self.current_motion['start'] > timeout:
+                self.get_logger().error(
+                    f"Motion completion timeout (pos_error_0: {pos_error_0}, pos_error_1: {pos_error_1}")
+                self.print_robot_infos()
+                motion_completed = True
+
+            '''
+            self.get_logger().info(
+                f"Motion started from {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
+            self.get_logger().info(
+                f"self.target_0: {self.target_0}, self.current_motion['target_position_0']: {self.current_motion['target_position_0']}, axis0.encoder.pos_estimate: {self.odrv0.axis0.encoder.pos_estimate}")
+            '''
+
+
+        if motion_completed:
+            self.target_0 = self.odrv0.axis0.encoder.pos_estimate
+            self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+
+        return motion_completed
 
     def getEncoderIndex(self, axis):
         return axis.encoder.shadow_count

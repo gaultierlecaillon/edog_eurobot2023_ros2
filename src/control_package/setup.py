@@ -23,6 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'motion_service = control_package.motion_service:main',
+            'motion_complete_service = control_package.motion_complete_service:main',
             'lidar_filter = control_package.lidar_filter:main'
         ],
     },

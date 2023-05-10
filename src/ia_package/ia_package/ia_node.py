@@ -46,7 +46,9 @@ class IANode(Node):
                 try:
                     getattr(self, self.action_name)(self.action_param)
                     self.update_current_action_status('on going')
-                except:
+                except Exception as e:
+                    self.get_logger().warning(f"param: {param}")
+                    self.get_logger().fatal(e)
                     self.get_logger().fatal(
                         f"Action {self.action_name} is unknown, no method call {self.action_name} in ia node")
                     exit(1)
@@ -141,7 +143,23 @@ class IANode(Node):
         future = client.call_async(request)
 
         future.add_done_callback(
-            partial(self.callback_current_action))
+            partial(self.callback_motion_complete))
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def callback_motion_complete(self, future):
+        service_name = "is_motion_complete"
+        self.get_logger().info(f"[Call Service] is_motion_complete")
+        client = self.create_client(NullBool, service_name)
+
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+
+        request = NullBool.Request()
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.second_callback_motion_complete))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -164,6 +182,19 @@ class IANode(Node):
             partial(self.callback_current_action))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def second_callback_motion_complete(self, future):
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f"[Motion Complete] Done ! {response}")
+                self.update_current_action_status('done')
+            else:
+                self.get_logger().info(f"Something went wrong with response: {response}")
+
+        except Exception as e:
+
+            self.get_logger().error("Service call failed %r" % (e,))
 
     def callback_current_action(self, future):
         try:
