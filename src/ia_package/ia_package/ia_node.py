@@ -9,6 +9,7 @@ from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import BoolBool
 from robot_interfaces.srv import IntBool
 from robot_interfaces.srv import NullBool
+from robot_interfaces.srv import FloatBool
 
 
 class IANode(Node):
@@ -139,6 +140,24 @@ class IANode(Node):
 
         request = IntBool.Request()
         request.distance_mm = int(param)
+
+        future = client.call_async(request)
+
+        future.add_done_callback(
+            partial(self.callback_motion_complete))
+
+        self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def rotate(self, param):
+        service_name = "cmd_rotate_service"
+
+        self.get_logger().info(f"[Exec Action] rotate with param: '{param}'")
+        client = self.create_client(FloatBool, service_name)
+        while not client.wait_for_service(1):
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
+
+        request = FloatBool.Request()
+        request.angle_deg = float(param)
 
         future = client.call_async(request)
 
