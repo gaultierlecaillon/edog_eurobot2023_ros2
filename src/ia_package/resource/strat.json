@@ -8,13 +8,23 @@
     {
       "name": "Starting Blocks",
       "actions": [
-        { "calibrate": "True" }
+                { "calibrate": "True" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {
       "name": "Opening",
       "actions": [
-        { "goto": "100, -100, 0" },
+        { "forward": "500" },
+        { "forward": "-500" },
+        { "forward": "500" },
+        { "forward": "-500" },
+        { "forward": "500" },
+        { "forward": "-500" },
+        { "forward": "500" },
+        { "forward": "-500" },
+        { "forward": "500" },
         { "forward": "-500" }
       ]
     }
