@@ -41,7 +41,6 @@ class MotionService(Node):
     def __init__(self):
         super().__init__("motion_service")
 
-        # self.emergency_triggered = False
         self.calibration_config = None
         self.odrv0 = None
         self.loadCalibrationConfig()
@@ -71,19 +70,23 @@ class MotionService(Node):
             "motion_has_start",
             self.motion_has_started)
 
+        '''
         self.create_service(
             NullBool,
             "is_motion_complete",
             self.is_motion_complete_callback)
+        '''
 
         # Subscribe to the "emergency_stop_topic"
-        '''
-        self.create_subscription(
+        self.emergency_stop = False
+        self.emergency_stop_subscription = self.create_subscription(
             Bool,
             "emergency_stop_topic",
             self.emergency_stop_callback,
             10)
-        '''
+
+        self.publisher = self.create_publisher(Bool, 'is_motion_complete', 10)
+
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -131,27 +134,15 @@ class MotionService(Node):
         return response
 
     def emergency_stop_callback(self, msg):
-        if self.current_motion['in_motion']:
-            print("in motion")
-            if msg.data and not self.emergency_triggered:
-                self.setPID("emergency_stop.json")
-                self.setPIDGains("emergency_stop.json")
-                self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
-                self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-                self.get_logger().error("Obstacle in front of the robot")
-                self.emergency_triggered = True
-            elif not msg.data and self.emergency_triggered:
-                self.get_logger().info("Obstavle gone !")
-            elif msg.data and self.emergency_triggered:
-                self.get_logger().info("waiting to move obs !")
+        if self.current_motion['in_motion'] and msg.data and not self.emergency_stop:
+            self.setPID("emergency_stop.json")
+            self.setPIDGains("emergency_stop.json")
+            self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
+            self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
+            self.get_logger().error("Obstacle in front of the robot")
+            self.emergency_stop = True
 
-            '''
-            if self.is_motion_complete():
-                self.current_motion['in_motion'] = False
-                self.current_motion['start'] = None
-                self.current_motion['target_position_0'] = 0
-                self.current_motion['target_position_1'] = 0
-            '''
+        self.is_motion_complete()
 
     #
     # Distance to do in mm
@@ -174,35 +165,6 @@ class MotionService(Node):
 
         response.success = True
         return response
-
-    '''
-    def goto_callback(self, request, response):
-        self.get_logger().info(f"Cmd goto_callback received: {request}")
-
-        # Calculate the target_angle in degrees to reach the point(x,y)
-        target_angle = math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
-        # Calculate the distance between A and B in mm
-        increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
-
-        self.get_logger().info(f"[Motion to Perform] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}")
-
-        # First rotate
-        self.motionRotate(target_angle)
-        self.r_ = target_angle
-
-        # Then move forward
-        self.motionForward(increment_mm)
-        self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 2)
-        self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 2)
-
-        # Finally rotate in the final angle
-        if request.r != -1:
-            self.motionRotate(request.r)
-            self.r_ = request.r
-
-        response.success = True
-        return response
-    '''
 
     def goto_callback(self, request, response):
         self.get_logger().info(f"Cmd goto_callback received: {request}")
@@ -249,12 +211,21 @@ class MotionService(Node):
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(increment_pos, False)
 
-    def is_motion_complete_callback(self, request, response):
-        while not self.is_motion_complete():
+    '''
+    def is_motion_complete_callback(self):
+        while not self.is_motion_complete() and not self.emergency_stop:
+            print("wait")
             time.sleep(0.05)
 
-        response.success = True
-        return response
+        if self.emergency_stop:
+            #response.success = False
+            self.get_logger().fatal(f"Obstacle detected !")
+        else:
+            #response.success = True
+            self.get_logger().fatal(f"ok !")
+
+        #return response
+    '''
 
     def call_motion_has_started(self, increment_pos_0, increment_pos_1):
         service_name = "motion_has_start"
@@ -304,6 +275,7 @@ class MotionService(Node):
                 self.get_logger().info(
                     f"\033[38;5;46mMotion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n\033[0m\n")
                 motion_completed = True
+                self.current_motion['in_motion'] = False
 
             elif time.time() - self.current_motion['start'] > timeout:
                 self.get_logger().error(
@@ -319,6 +291,11 @@ class MotionService(Node):
             '''
 
         if motion_completed:
+            # Publish True on the 'is_motion_complete' topic
+            msg = Bool()
+            msg.data = True
+            self.publisher.publish(msg)  # todo update name
+
             self.target_0 = self.odrv0.axis0.encoder.pos_estimate
             self.target_1 = self.odrv0.axis1.encoder.pos_estimate
             self.print_robot_infos()

@@ -24,6 +24,13 @@ class IANode(Node):
         self.load_strategy_from_file()
 
         self.number_timer_ = self.create_timer(0.1, self.master_callback)
+
+        self.create_subscription(
+            Bool,
+            "is_motion_complete",
+            self.is_motion_complete_callback,
+            10)
+
         self.get_logger().info("\033[38;5;208mIA Node is running!\n\n\t\t\t (⌐■_■) 𝘴𝘶𝘱 𝘣𝘳𝘢 ?\033[0m\n")
 
     def master_callback(self):
@@ -58,6 +65,10 @@ class IANode(Node):
                 "\033[38;5;208m[Match done] No more actions to exec\n\n\t\t\t (⌐■_■) 𝘪𝘴 𝘪𝘵 𝘗1 ?\033[0m\n")
 
             rclpy.shutdown()
+
+    def is_motion_complete_callback(self, msg):
+        if msg.data:
+            self.update_current_action_status('done')
 
     def waiting_tirette(self, param):
         self.subscriber_ = self.create_subscription(
@@ -143,8 +154,8 @@ class IANode(Node):
 
         future = client.call_async(request)
 
-        future.add_done_callback(
-            partial(self.callback_motion_complete))
+        #future.add_done_callback(
+            #partial(self.second_callback_motion_complete))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
