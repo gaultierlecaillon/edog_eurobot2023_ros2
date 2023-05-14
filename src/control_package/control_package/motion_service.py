@@ -71,7 +71,6 @@ class MotionService(Node):
             self.motion_has_started)
 
         # Subscribe to the "emergency_stop_topic"
-        self.emergency_stop = False
         self.create_subscription(
             Bool,
             "emergency_stop_topic",
@@ -127,14 +126,13 @@ class MotionService(Node):
 
     def emergency_stop_callback(self, msg):
         if self.current_motion['in_motion']:
-            if msg.data and not self.emergency_stop:
+            if msg.data and not self.current_motion['emergency']:
                 self.setPID("emergency_stop.json")
                 self.setPIDGains("emergency_stop.json")
                 self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
                 self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
                 self.get_logger().error(
                     f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
-                self.emergency_stop = True
                 self.current_motion['emergency'] = True
                 self.current_motion['in_motion'] = False
                 time.sleep(2)
@@ -143,17 +141,25 @@ class MotionService(Node):
 
             self.is_motion_complete()
 
-        if self.current_motion['emergency']:
-            print("self.current_motion", self.current_motion)
-            time.sleep(2)
+        if not msg.data and self.current_motion['emergency']:
+            time.sleep(1)
             pos_error_0 = abs(
                 self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
             pos_error_1 = abs(
                 self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
 
-            self.odrv0.axis0.controller.move_incremental(pos_error_0, False)
-            self.odrv0.axis1.controller.move_incremental(pos_error_1, False)
-            exit(1)
+            pos_error_mm = ((pos_error_0 + pos_error_1) / 2) / self.calibration_config["linear"]["coef"]
+            self.target_0 = self.odrv0.axis0.encoder.pos_estimate
+            self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+            
+            print("pos_error_0", pos_error_0)
+            print("pos_error_1", pos_error_1)
+            print("pos_error_mm", pos_error_mm)
+
+            self.motionForward(pos_error_mm)
+            self.current_motion['emergency'] = False
+        elif msg.data and self.current_motion['emergency']:
+            print("waiting for the obstacle to move")
 
     #
     # Distance to do in mm
