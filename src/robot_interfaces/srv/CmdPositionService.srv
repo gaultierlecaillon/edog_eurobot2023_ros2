@@ -2,4 +2,4 @@ int64 x
 int64 y
 int64 r
 ---
-bool success
+robot_interfaces/CmdPositionResult cmd

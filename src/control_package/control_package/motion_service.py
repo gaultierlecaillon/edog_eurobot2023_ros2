@@ -4,6 +4,7 @@ import json
 import rclpy
 from rclpy.node import Node
 from robot_interfaces.msg import Position
+from robot_interfaces.msg import CmdPositionResult
 from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import CmdMotionHasStart
 from robot_interfaces.srv import BoolBool
@@ -52,7 +53,7 @@ class MotionService(Node):
 
         self.position_service_ = self.create_service(
             CmdPositionService,
-            "cmd_position_service",
+            "cmd_goto_service",
             self.goto_callback)
 
         self.forward_service_ = self.create_service(
@@ -152,6 +153,9 @@ class MotionService(Node):
                 self.current_motion['target_position_1'] = 0
             '''
 
+    #
+    # Distance to do in mm
+    #
     def forward_callback(self, request, response):
         self.get_logger().info(f"Cmd forward_callback received: {request}")
 
@@ -165,50 +169,65 @@ class MotionService(Node):
     def rotate_callback(self, request, response):
         self.get_logger().info(f"Cmd rotate_callback received: {request}")
 
-        target_angle = self.r_ + request.angle_deg
-        self.motionRotate(target_angle)
-        self.r_ += target_angle
+        self.motionRotate(request.angle_deg)
+        self.r_ += request.angle_deg
 
         response.success = True
         return response
 
+    '''
     def goto_callback(self, request, response):
-        self.get_logger().info(f"\n")
-        self.get_logger().info(f"Starting process goto_callback {request}")
+        self.get_logger().info(f"Cmd goto_callback received: {request}")
 
         # Calculate the target_angle in degrees to reach the point(x,y)
         target_angle = math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
-
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
 
-        self.get_logger().info(
-            f"\033[38;5;208m[CMD MOTION RECEIVED] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}mm\033[0m\n")
+        self.get_logger().info(f"[Motion to Perform] Rotation to reach target angle of {target_angle}°, Distance = {increment_mm}")
 
         # First rotate
         self.motionRotate(target_angle)
         self.r_ = target_angle
 
         # Then move forward
-
         self.motionForward(increment_mm)
-        self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 1)
-        self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 1)
+        self.x_ += round(increment_mm * math.cos(math.radians(self.r_)), 2)
+        self.y_ += round(increment_mm * math.sin(math.radians(self.r_)), 2)
 
         # Finally rotate in the final angle
         if request.r != -1:
             self.motionRotate(request.r)
             self.r_ = request.r
 
-        self.get_logger().info(f"request {request}")
-        self.get_logger().info(f"response {response}")
-
-        self.print_robot_infos()
         response.success = True
         return response
+    '''
 
-    def motionRotate(self, target_angle):
-        rotation_to_do = target_angle - self.r_
+    def goto_callback(self, request, response):
+        self.get_logger().info(f"Cmd goto_callback received: {request}")
+
+        # Calculate the target_angle in degrees to reach the point(x,y)
+        target_angle = self.r_ + math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
+        self.get_logger().info(
+            f"\033[38;5;208m[target_angle] {target_angle}\033[0m\n")
+
+        # Calculate the distance between A and B in mm
+        increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
+        # Calculate the finak angle
+        final_target_angle = 0
+        if request.r != -1:
+            final_target_angle = request.r - target_angle
+
+        response.cmd = CmdPositionResult()
+        response.cmd.rotation = float(target_angle)
+        response.cmd.forward = int(increment_mm)
+        response.cmd.final_rotation = float(final_target_angle)
+        return response
+
+    def motionRotate(self, rotation_to_do):
+
+        target_angle = self.r_ + rotation_to_do
         increment_mm = rotation_to_do * float(self.calibration_config["rotation"]["coef"])
         increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm
 
@@ -284,7 +303,6 @@ class MotionService(Node):
             elif pos_error_0 <= self.cpr_error_tolerance and pos_error_1 <= self.cpr_error_tolerance:
                 self.get_logger().info(
                     f"\033[38;5;46mMotion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n\033[0m\n")
-
                 motion_completed = True
 
             elif time.time() - self.current_motion['start'] > timeout:
@@ -303,6 +321,7 @@ class MotionService(Node):
         if motion_completed:
             self.target_0 = self.odrv0.axis0.encoder.pos_estimate
             self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+            self.print_robot_infos()
 
         return motion_completed
 

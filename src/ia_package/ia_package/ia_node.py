@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import rclpy
+import math
 from rclpy.node import Node
 from functools import partial
 from std_msgs.msg import Bool
@@ -40,7 +41,7 @@ class IANode(Node):
 
             if not self.current_action_already_printed:
                 self.get_logger().info(
-                    f"[Current Action] {self.action_name} {self.action_param} ({current_action['status']})")
+                    f"[Exec Current Action] {self.action_name} {self.action_param} ({current_action['status']})")
                 self.current_action_already_printed = True
 
             if current_action['status'] == "pending":
@@ -48,7 +49,6 @@ class IANode(Node):
                     getattr(self, self.action_name)(self.action_param)
                     self.update_current_action_status('on going')
                 except Exception as e:
-                    self.get_logger().warning(f"param: {param}")
                     self.get_logger().fatal(e)
                     self.get_logger().fatal(
                         f"Action {self.action_name} is unknown, no method call {self.action_name} in ia node")
@@ -183,7 +183,7 @@ class IANode(Node):
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
     def goto(self, param):
-        service_name = "cmd_position_service"
+        service_name = "cmd_goto_service"
         self.get_logger().info(f"[Exec Action] goto with param: {param}")
 
         client = self.create_client(CmdPositionService, service_name)
@@ -198,28 +198,49 @@ class IANode(Node):
         future = client.call_async(request)
 
         future.add_done_callback(
-            partial(self.callback_current_action))
+            partial(self.transform_goto_in_cmd))
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
+
+    def transform_goto_in_cmd(self, future):
+        try:
+            response = future.result()
+            self.get_logger().info(f"[callback_goto]: {response.cmd}")
+
+            self.actions_dict.pop(0)
+            if response.cmd.final_rotation != 0:
+                self.actions_dict.insert(0, {
+                    'action': {'rotate': response.cmd.final_rotation},
+                    'status': 'pending'
+                })
+            self.actions_dict.insert(0, {
+                'action': {'forward': response.cmd.forward},
+                'status': 'pending'
+            })
+            self.actions_dict.insert(0, {
+                'action': {'rotate': response.cmd.rotation},
+                'status': 'pending'
+            })
+        except Exception as e:
+            self.get_logger().error("Service call failed %r" % (e,))
 
     def second_callback_motion_complete(self, future):
         try:
             response = future.result()
             if response.success:
-                self.get_logger().info(f"[Motion Complete] Done ! {response}")
+                self.get_logger().info(f"\033[38;5;46mMotion completed ! {response}")
                 self.update_current_action_status('done')
             else:
                 self.get_logger().info(f"Something went wrong with response: {response}")
 
         except Exception as e:
-
             self.get_logger().error("Service call failed %r" % (e,))
 
     def callback_current_action(self, future):
         try:
             response = future.result()
             if response.success:
-                self.get_logger().info(f"[Current Action] Done ! {response}")
+                self.get_logger().info(f"[Callback Current Action] Done ! {response}")
                 self.update_current_action_status('done')
             else:
                 self.get_logger().info(f"Something went wrong with response: {response}")
@@ -247,7 +268,7 @@ class IANode(Node):
                 self.actions_dict.append(
                     {
                         'action': action,
-                        'status': 'pending',
+                        'status': 'pending'
                     }
                 )
 

@@ -14,11 +14,8 @@
     {
       "name": "Opening",
       "actions": [
-        { "forward": "500" },
-        { "rotate": "90" },
-        { "forward": "-200" },
-        { "rotate": "-90" },
-        { "forward": "-500" }
+        { "goto": "100, 100, 0" },
+        { "goto": "0, 0, 0" }
       ]
     }
   ]

@@ -22,6 +22,7 @@ find_package(rosidl_default_generators REQUIRED)
 # Add message and service files
 set(msg_files
   "msg/Position.msg"
+  "msg/CmdPositionResult.msg"
 )
 
 set(srv_files
