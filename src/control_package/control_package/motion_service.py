@@ -79,7 +79,7 @@ class MotionService(Node):
 
         # Subscribe to the "emergency_stop_topic"
         self.emergency_stop = False
-        self.emergency_stop_subscription = self.create_subscription(
+        self.create_subscription(
             Bool,
             "emergency_stop_topic",
             self.emergency_stop_callback,
@@ -134,15 +134,21 @@ class MotionService(Node):
         return response
 
     def emergency_stop_callback(self, msg):
-        if self.current_motion['in_motion'] and msg.data and not self.emergency_stop:
-            self.setPID("emergency_stop.json")
-            self.setPIDGains("emergency_stop.json")
-            self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
-            self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-            self.get_logger().error("Obstacle in front of the robot")
-            self.emergency_stop = True
+        if self.current_motion['in_motion']:
+            if msg.data and not self.emergency_stop:
+                self.setPID("emergency_stop.json")
+                self.setPIDGains("emergency_stop.json")
+                self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
+                self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
+                self.get_logger().error(f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
+                self.emergency_stop = True
+                self.current_motion['emergency'] = True
+                self.current_motion['in_motion'] = False
+                time.sleep(2)
+                self.setPID("odrive_config.json")
+                self.setPIDGains("odrive_config.json")
 
-        self.is_motion_complete()
+            self.is_motion_complete()
 
     #
     # Distance to do in mm
@@ -275,7 +281,7 @@ class MotionService(Node):
                 self.get_logger().info(
                     f"\033[38;5;46mMotion completed in {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n\033[0m\n")
                 motion_completed = True
-                self.current_motion['in_motion'] = False
+
 
             elif time.time() - self.current_motion['start'] > timeout:
                 self.get_logger().error(
@@ -298,6 +304,9 @@ class MotionService(Node):
 
             self.target_0 = self.odrv0.axis0.encoder.pos_estimate
             self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+
+            self.current_motion['in_motion'] = False
+
             self.print_robot_infos()
 
         return motion_completed
