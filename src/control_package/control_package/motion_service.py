@@ -70,13 +70,6 @@ class MotionService(Node):
             "motion_has_start",
             self.motion_has_started)
 
-        '''
-        self.create_service(
-            NullBool,
-            "is_motion_complete",
-            self.is_motion_complete_callback)
-        '''
-
         # Subscribe to the "emergency_stop_topic"
         self.emergency_stop = False
         self.create_subscription(
@@ -86,7 +79,6 @@ class MotionService(Node):
             10)
 
         self.publisher = self.create_publisher(Bool, 'is_motion_complete', 10)
-
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -140,7 +132,8 @@ class MotionService(Node):
                 self.setPIDGains("emergency_stop.json")
                 self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
                 self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-                self.get_logger().error(f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
+                self.get_logger().error(
+                    f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
                 self.emergency_stop = True
                 self.current_motion['emergency'] = True
                 self.current_motion['in_motion'] = False
@@ -149,6 +142,18 @@ class MotionService(Node):
                 self.setPIDGains("odrive_config.json")
 
             self.is_motion_complete()
+
+        if self.current_motion['emergency']:
+            print("self.current_motion", self.current_motion)
+            time.sleep(2)
+            pos_error_0 = abs(
+                self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
+            pos_error_1 = abs(
+                self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
+
+            self.odrv0.axis0.controller.move_incremental(pos_error_0, False)
+            self.odrv0.axis1.controller.move_incremental(pos_error_1, False)
+            exit(1)
 
     #
     # Distance to do in mm
@@ -216,22 +221,6 @@ class MotionService(Node):
 
         self.odrv0.axis0.controller.move_incremental(increment_pos, False)
         self.odrv0.axis1.controller.move_incremental(increment_pos, False)
-
-    '''
-    def is_motion_complete_callback(self):
-        while not self.is_motion_complete() and not self.emergency_stop:
-            print("wait")
-            time.sleep(0.05)
-
-        if self.emergency_stop:
-            #response.success = False
-            self.get_logger().fatal(f"Obstacle detected !")
-        else:
-            #response.success = True
-            self.get_logger().fatal(f"ok !")
-
-        #return response
-    '''
 
     def call_motion_has_started(self, increment_pos_0, increment_pos_1):
         service_name = "motion_has_start"
@@ -306,6 +295,9 @@ class MotionService(Node):
             self.target_1 = self.odrv0.axis1.encoder.pos_estimate
 
             self.current_motion['in_motion'] = False
+            self.current_motion['start'] = None
+            self.current_motion['target_position_0'] = 0
+            self.current_motion['target_position_1'] = 0
 
             self.print_robot_infos()
 

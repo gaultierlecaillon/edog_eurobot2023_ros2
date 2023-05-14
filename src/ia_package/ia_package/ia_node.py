@@ -177,6 +177,7 @@ class IANode(Node):
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
+    #todo remove
     def callback_motion_complete(self, future):
         service_name = "is_motion_complete"
         self.get_logger().info(f"[Call Service] is_motion_complete")

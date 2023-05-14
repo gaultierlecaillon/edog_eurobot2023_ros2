@@ -14,8 +14,8 @@
     {
       "name": "Opening",
       "actions": [
-        { "forward": "500" },
-        { "forward": "-500" }
+        { "forward": "300" },
+        { "forward": "-300" }
       ]
     }
   ]
