@@ -20,8 +20,13 @@ class IANode(Node):
 
     def __init__(self):
         super().__init__('ia_node')
+
+        # Declare and get the strategy_filename parameter
+        self.declare_parameter('strategy_filename', 'strat')
+        self.strategy_filename = self.get_parameter('strategy_filename').get_parameter_value().string_value
+
         self.actions_dict = []
-        self.load_strategy_from_file()
+        self.load_strategy()
 
         self.number_timer_ = self.create_timer(0.1, self.master_callback)
 
@@ -233,8 +238,8 @@ class IANode(Node):
             self.actions_dict[0]['status'] = status
         self.current_action_already_printed = False
 
-    def load_strategy_from_file(self):
-        with open('/home/edog/ros2_ws/src/ia_package/resource/strat.json') as file:
+    def load_strategy(self):
+        with open('/home/edog/ros2_ws/src/ia_package/resource/' + self.strategy_filename + '.json') as file:
             config = json.load(file)
 
         self.get_logger().info(f"[Loading Strategy] {config['name']} ({config['description']})")
