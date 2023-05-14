@@ -126,7 +126,7 @@ class MotionService(Node):
 
     def emergency_stop_callback(self, msg):
         if self.current_motion['in_motion']:
-            if msg.data and not self.current_motion['emergency']:
+            if msg.data and not self.current_motion['emergency'] and self.current_motion['target_position_0'] == self.current_motion['target_position_1']:
                 self.setPID("emergency_stop.json")
                 self.setPIDGains("emergency_stop.json")
                 self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
@@ -151,7 +151,7 @@ class MotionService(Node):
             pos_error_mm = ((pos_error_0 + pos_error_1) / 2) / self.calibration_config["linear"]["coef"]
             self.target_0 = self.odrv0.axis0.encoder.pos_estimate
             self.target_1 = self.odrv0.axis1.encoder.pos_estimate
-            
+
             print("pos_error_0", pos_error_0)
             print("pos_error_1", pos_error_1)
             print("pos_error_mm", pos_error_mm)

@@ -152,10 +152,7 @@ class IANode(Node):
         request = IntBool.Request()
         request.distance_mm = int(param)
 
-        future = client.call_async(request)
-
-        #future.add_done_callback(
-            #partial(self.second_callback_motion_complete))
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -170,27 +167,7 @@ class IANode(Node):
         request = FloatBool.Request()
         request.angle_deg = float(param)
 
-        future = client.call_async(request)
-
-        future.add_done_callback(
-            partial(self.callback_motion_complete))
-
-        self.get_logger().info(f"[Publish] {request} to {service_name}")
-
-    #todo remove
-    def callback_motion_complete(self, future):
-        service_name = "is_motion_complete"
-        self.get_logger().info(f"[Call Service] is_motion_complete")
-        client = self.create_client(NullBool, service_name)
-
-        while not client.wait_for_service(1):
-            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
-
-        request = NullBool.Request()
-        future = client.call_async(request)
-
-        future.add_done_callback(
-            partial(self.second_callback_motion_complete))
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
@@ -233,18 +210,6 @@ class IANode(Node):
                 'action': {'rotate': response.cmd.rotation},
                 'status': 'pending'
             })
-        except Exception as e:
-            self.get_logger().error("Service call failed %r" % (e,))
-
-    def second_callback_motion_complete(self, future):
-        try:
-            response = future.result()
-            if response.success:
-                self.get_logger().info(f"\033[38;5;46mMotion completed ! {response}")
-                self.update_current_action_status('done')
-            else:
-                self.get_logger().info(f"Something went wrong with response: {response}")
-
         except Exception as e:
             self.get_logger().error("Service call failed %r" % (e,))
 
