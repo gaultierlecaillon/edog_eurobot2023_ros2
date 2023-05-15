@@ -206,7 +206,7 @@ class IANode(Node):
     def transform_goto_in_cmd(self, future):
         try:
             response = future.result()
-            self.get_logger().info(f"[callback_goto]: {response.cmd}")
+            self.get_logger().warn(f"[callback_goto]: {response.cmd}")
 
             self.actions_dict.pop(0)
             if response.cmd.final_rotation != 0:

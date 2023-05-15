@@ -150,8 +150,6 @@ class MotionService(Node):
                 y_mm = (self.odrv0.axis1.encoder.pos_estimate - self.pos_estimate_1) / \
                        self.calibration_config["linear"]["coef"]
 
-                print(f"x_mm: {x_mm}, y_mm: {y_mm}")
-
                 new_x = x_mm * math.cos(math.radians(self.r_)) + self.x_
                 new_y = y_mm * math.sin(math.radians(self.r_)) + self.y_
 
@@ -228,7 +226,9 @@ class MotionService(Node):
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
         # Calculate the finak angle
 
-        final_target_angle = request.r - target_angle
+        final_target_angle = request.r - target_angle - self.r_
+        self.get_logger().warn(f"final_target_angle={final_target_angle}={target_angle} + {self.r_}+{request.r}")
+
         if request.r == -1:
             final_target_angle = 0
 

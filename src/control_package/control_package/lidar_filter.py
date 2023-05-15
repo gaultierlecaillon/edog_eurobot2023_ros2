@@ -19,6 +19,10 @@ from rclpy.executors import MultiThreadedExecutor
 
 
 class LidarFilter(Node):
+    x_ = 0  # Current robot x position
+    y_ = 0  # Current robot y position
+    r_ = 0  # Current robot r target_angle
+
     def __init__(self, max_distance, min_distance, emergency_distance):
         super().__init__("lidar_filter")
         self.subscriber_ = self.create_subscription(LaserScan, 'scan', self.scan_callback, 10)
@@ -41,7 +45,9 @@ class LidarFilter(Node):
 
     def robot_position_callback(self, msg):
         self.get_logger().info(f"x: {msg.x}, y: {msg.y}, r: {msg.r}")
-
+        self.x_ = msg.x
+        self.y_ = msg.y
+        self.r_ = msg.r
 
     def scan_callback(self, msg):
         ranges_list = msg.ranges
@@ -118,8 +124,19 @@ class LidarFilter(Node):
                 x = distance * numpy.cos(angle_rad)  # in m
                 y = distance * numpy.sin(angle_rad)  # in m
 
-                if self.min_distance < x < self.emergency_distance and -0.3 < y < 0.3:  # todo to 40
+                # Convert robot's angle to radians for trigonometry
+                r_rad = math.radians(self.r_)
+
+                x_obstacle = round(x * 1000 * math.cos(r_rad) - y * math.sin(r_rad) + self.x_)
+                y_obstacle = round(x * 1000 * math.sin(r_rad) + y * math.cos(r_rad) + self.y_)
+
+                if self.min_distance < x < self.emergency_distance \
+                        and -0.3 < y < 0.3 \
+                        and 200 < x_obstacle < 2800 \
+                        and 200 < y_obstacle < 1800:
                     # self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
+                    self.get_logger().fatal(
+                        f"Obstacle in x {round(x * 1000)} and y {round(y * 1000)}, x_obstacle: {x_obstacle}, y_obstacle: {y_obstacle}")
                     emergency_stop_msg.data = True
                     self.emergency_stop_publisher_.publish(emergency_stop_msg)
                     return

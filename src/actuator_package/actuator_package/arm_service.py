@@ -217,9 +217,7 @@ class ArmService(Node):
         GPIO.output(self.EN_pin, GPIO.LOW)
 
         if self.stack_loaded == 0:
-            self.get_logger().fatal(f"slightlyArm")
             self.slightlyArm()
-            self.get_logger().fatal(f"slightlyArm done")
             self.cmd_forward(push_distance)
             self.close_arm()
             time.sleep(0.5)
