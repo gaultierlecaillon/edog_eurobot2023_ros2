@@ -212,13 +212,14 @@ class ArmService(Node):
 
     def arm_grab_callback(self, request, response):
         push_distance = 30  # TODO
-        self.get_logger().info(f"\n")
-        self.get_logger().info(f"Service starting process arm_drop_callback function (request:{request})")
+        self.get_logger().info(f"Cmd arm_drop_callback received: {request}")
 
         GPIO.output(self.EN_pin, GPIO.LOW)
 
         if self.stack_loaded == 0:
+            self.get_logger().fatal(f"slightlyArm")
             self.slightlyArm()
+            self.get_logger().fatal(f"slightlyArm done")
             self.cmd_forward(push_distance)
             self.close_arm()
             time.sleep(0.5)
@@ -303,6 +304,8 @@ class ArmService(Node):
         self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2) + self.arm_offset['servo1_offset']
 
     def slightlyArm(self):
+        print("self.arm_offset['slightly'] + self.arm_offset['servo0_offset']", self.arm_offset['slightly'] + self.arm_offset['servo0_offset'])
+        print("180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']", 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset'])
         self.kit.servo[0].angle = self.arm_offset['slightly'] + self.arm_offset['servo0_offset']
         self.kit.servo[1].angle = 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']
 

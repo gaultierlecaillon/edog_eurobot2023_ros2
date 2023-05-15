@@ -7,6 +7,7 @@ from robot_interfaces.msg import Position
 from robot_interfaces.msg import CmdPositionResult
 from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import CmdMotionHasStart
+from robot_interfaces.srv import PositionBool
 from robot_interfaces.srv import BoolBool
 from robot_interfaces.srv import IntBool
 from robot_interfaces.srv import FloatBool
@@ -46,7 +47,7 @@ class MotionService(Node):
         self.loadCalibrationConfig()
 
         self.calibration_service_ = self.create_service(
-            BoolBool,
+            PositionBool,
             "cmd_calibration_service",
             self.calibration_callback)
 
@@ -90,6 +91,7 @@ class MotionService(Node):
         print("self.calibration_config", self.calibration_config)
 
     def calibration_callback(self, request, response):
+
         # Find a connected ODrive (this will block until you connect one)
         self.get_logger().info(f"Finding an odrive...")
         self.odrv0 = odrive.find_any()
@@ -119,6 +121,15 @@ class MotionService(Node):
 
         self.setPID("odrive_config.json")
         self.setPIDGains("odrive_config.json")
+
+        self.x_ = request.start_position.x
+        self.y_ = request.start_position.x
+        self.r_ = request.start_position.r
+
+        self.target_0 = 0
+        self.target_1 = 0
+
+
 
         response.success = True
         time.sleep(0.2)

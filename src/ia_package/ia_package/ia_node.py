@@ -5,7 +5,7 @@ import math
 from rclpy.node import Node
 from functools import partial
 from std_msgs.msg import Bool
-from robot_interfaces.msg import Position
+from robot_interfaces.srv import PositionBool
 from robot_interfaces.srv import CmdPositionService
 from robot_interfaces.srv import BoolBool
 from robot_interfaces.srv import IntBool
@@ -22,6 +22,7 @@ class IANode(Node):
         super().__init__('ia_node')
 
         # Declare and get the strategy_filename parameter
+        self.config = None
         self.declare_parameter('strategy_filename', 'strat')
         self.strategy_filename = self.get_parameter('strategy_filename').get_parameter_value().string_value
 
@@ -88,12 +89,15 @@ class IANode(Node):
 
     def calibrate(self, param):
         self.get_logger().info(f"[Exec Action] calibrate with param: {param}")
-        client = self.create_client(BoolBool, "cmd_calibration_service")
+        client = self.create_client(PositionBool, "cmd_calibration_service")
         while not client.wait_for_service(0.25):
             self.get_logger().warn("Waiting for Server to be available...")
 
-        request = BoolBool.Request()
-        request.data = True
+        int_param = [int(x) for x in self.config['startingPos'].split(",")]
+        request = PositionBool.Request()
+        request.start_position.x = int_param[0]
+        request.start_position.y = int_param[1]
+        request.start_position.r = int_param[2]
         future = client.call_async(request)
 
         future.add_done_callback(
@@ -109,10 +113,7 @@ class IANode(Node):
             self.get_logger().warn("Waiting for Server to be available...")
 
         request = NullBool.Request()
-        future = client.call_async(request)
-
-        future.add_done_callback(
-            partial(self.callback_current_action))
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to cmd_arm_service")
 
@@ -240,12 +241,12 @@ class IANode(Node):
 
     def load_strategy(self):
         with open('/home/edog/ros2_ws/src/ia_package/resource/' + self.strategy_filename + '.json') as file:
-            config = json.load(file)
+            self.config = json.load(file)
 
-        self.get_logger().info(f"[Loading Strategy] {config['name']} ({config['description']})")
-        self.get_logger().info(f"[Start] Color: {config['color']} | StartPos:({config['startingPos']})")
+        self.get_logger().info(f"[Loading Strategy] {self.config['name']} ({self.config['description']})")
+        self.get_logger().info(f"[Start] Color: {self.config['color']} | StartPos:({self.config['startingPos']})")
 
-        for strat in config['strategy']:
+        for strat in self.config['strategy']:
             for action in strat['actions']:
                 self.actions_dict.append(
                     {

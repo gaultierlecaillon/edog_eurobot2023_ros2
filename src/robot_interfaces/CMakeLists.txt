@@ -32,6 +32,7 @@ set(srv_files
   "srv/IntBool.srv"
   "srv/NullBool.srv"
   "srv/FloatBool.srv"
+  "srv/PositionBool.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
