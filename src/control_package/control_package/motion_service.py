@@ -123,7 +123,7 @@ class MotionService(Node):
         self.setPIDGains("odrive_config.json")
 
         self.x_ = request.start_position.x
-        self.y_ = request.start_position.x
+        self.y_ = request.start_position.y
         self.r_ = request.start_position.r
 
         self.target_0 = 0

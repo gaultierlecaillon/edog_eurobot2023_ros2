@@ -208,14 +208,16 @@ class IANode(Node):
                     'action': {'rotate': response.cmd.final_rotation},
                     'status': 'pending'
                 })
-            self.actions_dict.insert(0, {
-                'action': {'forward': response.cmd.forward},
-                'status': 'pending'
-            })
-            self.actions_dict.insert(0, {
-                'action': {'rotate': response.cmd.rotation},
-                'status': 'pending'
-            })
+            if response.cmd.forward != 0:
+                self.actions_dict.insert(0, {
+                    'action': {'forward': response.cmd.forward},
+                    'status': 'pending'
+                })
+            if response.cmd.rotation != 0:
+                self.actions_dict.insert(0, {
+                    'action': {'rotate': response.cmd.rotation},
+                    'status': 'pending'
+                })
         except Exception as e:
             self.get_logger().error("Service call failed %r" % (e,))
 
