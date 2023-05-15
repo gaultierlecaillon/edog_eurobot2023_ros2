@@ -68,7 +68,7 @@ class ArmService(Node):
         self.get_logger().info("Arm Service has been started.")
 
     def is_motion_complete_callback(self, msg):
-        exit(1)
+        print("ARRIVE !")
         if msg.data:
             self.motion_complete = True
 
