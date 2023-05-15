@@ -164,8 +164,7 @@ class MotionService(Node):
                 self.setPIDGains("emergency_stop.json")
                 self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
                 self.odrv0.axis1.controller.input_pos = self.odrv0.axis1.encoder.pos_estimate
-                self.get_logger().error(
-                    f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
+                #self.get_logger().error(f"Obstacle in front of the robot. Stopped @ input_pos_0={self.odrv0.axis0.encoder.pos_estimate} and input_pos_1={self.odrv0.axis1.encoder.pos_estimate} ")
                 self.current_motion['emergency'] = True
                 self.current_motion['in_motion'] = False
                 time.sleep(2)

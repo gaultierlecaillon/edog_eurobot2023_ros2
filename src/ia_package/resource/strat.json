@@ -1,14 +1,16 @@
 {
   "type": "Strategy",
-  "name": "MatchGreen",
-  "description": "Main strategy for green color",
-  "color": "green",
-  "startingPos": "220,1767,0",
+  "name": "MatchBlue",
+  "description": "Main strategy for blue color",
+  "color": "blue",
+  "startingPos": "225,225,0",
   "strategy": [
     {
       "name": "Starting Blocks",
       "actions": [
-        { "calibrate": "True" }
+        { "calibrate": "True" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {

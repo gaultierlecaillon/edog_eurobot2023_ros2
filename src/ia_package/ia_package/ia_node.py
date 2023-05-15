@@ -129,10 +129,7 @@ class IANode(Node):
             self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         request = NullBool.Request()
-        future = client.call_async(request)
-
-        future.add_done_callback(
-            partial(self.callback_current_action))
+        client.call_async(request)
 
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 

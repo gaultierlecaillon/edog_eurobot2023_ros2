@@ -44,7 +44,7 @@ class LidarFilter(Node):
         self.get_logger().info('LidarFilter node has started')
 
     def robot_position_callback(self, msg):
-        self.get_logger().info(f"x: {msg.x}, y: {msg.y}, r: {msg.r}")
+        #self.get_logger().info(f"x: {msg.x}, y: {msg.y}, r: {msg.r}")
         self.x_ = msg.x
         self.y_ = msg.y
         self.r_ = msg.r
@@ -135,8 +135,6 @@ class LidarFilter(Node):
                         and 200 < x_obstacle < 2800 \
                         and 200 < y_obstacle < 1800:
                     # self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
-                    self.get_logger().fatal(
-                        f"Obstacle in x {round(x * 1000)} and y {round(y * 1000)}, x_obstacle: {x_obstacle}, y_obstacle: {y_obstacle}")
                     emergency_stop_msg.data = True
                     self.emergency_stop_publisher_.publish(emergency_stop_msg)
                     return

@@ -7,6 +7,7 @@ from robot_interfaces.srv import CmdPositionService
 import RPi.GPIO as GPIO
 from robot_interfaces.srv import IntBool
 from functools import partial
+from std_msgs.msg import Bool
 from robot_interfaces.srv import NullBool
 from robot_interfaces.srv import FloatBool
 
@@ -34,6 +35,8 @@ class ArmService(Node):
     stack_loaded = 0
     arm_position = 0
 
+    motion_complete = False
+
     def __init__(self):
         super().__init__("arm_service")
         self.kit = ServoKit(channels=16)
@@ -56,7 +59,18 @@ class ArmService(Node):
             "cmd_arm_unstack_service",
             self.arm_unstack_callback)
 
+        self.create_subscription(
+            Bool,
+            "is_motion_complete",
+            self.is_motion_complete_callback,
+            10)
+
         self.get_logger().info("Arm Service has been started.")
+
+    def is_motion_complete_callback(self, msg):
+        exit(1)
+        if msg.data:
+            self.motion_complete = True
 
     def initStepper(self):
         self.stepper_motor = RpiMotorLib.A4988Nema(self.direction, self.step, (21, 21, 21), "DRV8825")
@@ -93,7 +107,6 @@ class ArmService(Node):
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
     def arm_unstack_callback(self, request, response):
-        self.get_logger().info(f"\n")
         self.get_logger().info(f"Service starting process arm_unstack_callback function (request:{request})")
         GPIO.output(self.EN_pin, GPIO.LOW)
 
@@ -109,8 +122,9 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm(2)
         self.cmd_forward(-forward)  # instantaneous
+        time.sleep(1.5)
         self.cmd_rotate(-angle)  # instantaneous but wait for cmd_forward to finsh
-        time.sleep(1)
+        time.sleep(1.2)
         self.move_arm_down()
 
         # depose Pile 2 Cake 1
@@ -125,11 +139,12 @@ class ArmService(Node):
         self.move_arm(2)
         time.sleep(0.1)
         self.cmd_forward(-forward)  # instantaneous
-        time.sleep(1)
+        time.sleep(1.5)
         self.move_arm_down()
 
         # depose Pile 3 Cake 1 et 2
         self.cmd_rotate(-angle)  # instantaneous but wait for
+        time.sleep(1.5)
         self.cmd_forward(forward)  # instantaneous but wait for
         time.sleep(1.7)
         self.slightlyArm()
@@ -140,6 +155,7 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)  # instantaneous
+        time.sleep(1.2)
         self.cmd_rotate(angle)  # instantaneous but wait for
 
         # depose Pile 2 Cake 2
@@ -153,6 +169,7 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm(3)
         self.cmd_forward(-forward)
+        time.sleep(1.7)
         self.cmd_rotate(angle)
 
         # depose Pile 1 Cake 2 et 3
@@ -167,6 +184,7 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)  # instant
+        time.sleep(1.7)
         self.cmd_rotate(-angle)
 
         # depose Pile 2 Cake 3
@@ -181,6 +199,7 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)
+        time.sleep(1.7)
         self.cmd_rotate(-angle)
 
         # depose Pile 3 Cake 3
