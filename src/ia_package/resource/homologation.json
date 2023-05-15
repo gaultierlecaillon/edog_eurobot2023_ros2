@@ -8,7 +8,9 @@
     {
       "name": "Starting Blocks",
       "actions": [
-        { "calibrate": "True" }
+        { "calibrate": "True" },
+        { "waiting_tirette": "True" },
+        { "waiting_tirette": "False" }
       ]
     },
     {
@@ -19,7 +21,9 @@
         { "forward": "180" },
         { "grab": "" },
         { "goto": "1090,1320,-1" },
-        { "grab": "" }
+        { "grab": "" },
+        { "goto": "1865,1677,90" },
+        { "drop": "" }
       ]
     }
   ]
