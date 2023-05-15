@@ -23,10 +23,10 @@ class ArmService(Node):
     step = 23  # Step GPIO Pin
     EN_pin = 24  # enable pin (LOW to enable)
     arm_offset = {
-        "open": 15,
-        "slightly": 50,
-        "close": 75,
-        "servo0_offset": 0,
+        "open": 25,
+        "slightly": 65,
+        "close": 73,
+        "servo0_offset": -15,
         "servo1_offset": 0,
     }
 
@@ -38,6 +38,7 @@ class ArmService(Node):
         super().__init__("arm_service")
         self.kit = ServoKit(channels=16)
         self.open_arm()
+        print("arm_offset", self.arm_offset)
         self.initStepper()
 
         self.create_service(
@@ -298,13 +299,8 @@ class ArmService(Node):
     def open_arm(self):
         self.kit.servo[0].angle = self.arm_offset['open'] + self.arm_offset['servo0_offset']
         self.kit.servo[1].angle = 180 - self.arm_offset['open'] + self.arm_offset['servo1_offset']
-        time.sleep(0.15)
-        self.kit.servo[0].angle = self.arm_offset['open'] + 2 + self.arm_offset['servo0_offset']
-        self.kit.servo[1].angle = 180 - (self.arm_offset['open'] + 2) + self.arm_offset['servo1_offset']
 
     def slightlyArm(self):
-        print("self.arm_offset['slightly'] + self.arm_offset['servo0_offset']", self.arm_offset['slightly'] + self.arm_offset['servo0_offset'])
-        print("180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']", 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset'])
         self.kit.servo[0].angle = self.arm_offset['slightly'] + self.arm_offset['servo0_offset']
         self.kit.servo[1].angle = 180 - self.arm_offset['slightly'] + self.arm_offset['servo1_offset']
 

@@ -99,7 +99,7 @@ class IANode(Node):
         request = PositionBool.Request()
         request.start_position.x = int_param[0]
         request.start_position.y = int_param[1]
-        request.start_position.r = int_param[2]
+        request.start_position.r = float(int_param[2])
         future = client.call_async(request)
 
         future.add_done_callback(

@@ -1,3 +1,3 @@
 int64 x
 int64 y
-int64 r
+float32 r

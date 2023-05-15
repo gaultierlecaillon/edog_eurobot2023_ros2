@@ -3,7 +3,7 @@
   "name": "MatchGreen",
   "description": "Main strategy for green color",
   "color": "green",
-  "startingPos": "0,0,0",
+  "startingPos": "220,1767,0",
   "strategy": [
     {
       "name": "Starting Blocks",
@@ -20,10 +20,9 @@
         { "grab": "" },
         { "forward": "180" },
         { "grab": "" },
-        { "goto": "770,-380,-1" },
+        { "goto": "1090,1320,-1" },
         { "grab": "" },
-        { "goto": "50,-250,180" },
-        { "unstack": "" }
+        { "goto": "300,1565,-180" }
       ]
     }
   ]

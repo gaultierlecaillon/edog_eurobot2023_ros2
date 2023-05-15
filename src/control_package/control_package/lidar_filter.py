@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from example_interfaces.msg import String
+from robot_interfaces.msg import Position
 from std_msgs.msg import Bool
 import numpy
 import math
@@ -29,7 +30,18 @@ class LidarFilter(Node):
         self.filter_scan_publisher_ = self.create_publisher(LaserScan, "filter_scan_topic", 10)
         self.emergency_stop_publisher_ = self.create_publisher(Bool, "emergency_stop_topic", 10)
 
+        # Subscriber
+        self.create_subscription(
+            Position,
+            "robot_position",
+            self.robot_position_callback,
+            10)
+
         self.get_logger().info('LidarFilter node has started')
+
+    def robot_position_callback(self, msg):
+        self.get_logger().info(f"x: {msg.x}, y: {msg.y}, r: {msg.r}")
+
 
     def scan_callback(self, msg):
         ranges_list = msg.ranges
@@ -106,11 +118,11 @@ class LidarFilter(Node):
                 x = distance * numpy.cos(angle_rad)  # in m
                 y = distance * numpy.sin(angle_rad)  # in m
 
-                if self.min_distance < x < self.emergency_distance and -0.3 < y < 0.3: #todo to 40
-                    #self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
+                if self.min_distance < x < self.emergency_distance and -0.3 < y < 0.3:  # todo to 40
+                    # self.get_logger().info(f"x {round(x,4)}, y={round(y,4)}")
                     emergency_stop_msg.data = True
                     self.emergency_stop_publisher_.publish(emergency_stop_msg)
-                    return 
+                    return
 
         self.emergency_stop_publisher_.publish(emergency_stop_msg)
 

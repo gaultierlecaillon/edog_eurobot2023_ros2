@@ -27,11 +27,16 @@ class MotionService(Node):
     x_ = 0  # Current robot x position
     y_ = 0  # Current robot y position
     r_ = 0  # Current robot r target_angle
+    x_target = 0
+    y_target = 0
+    pos_estimate_0 = 0
+    pos_estimate_1 = 0
 
     target_0 = 0
     target_1 = 0
     current_motion = {
         'in_motion': False,
+        'type': '',
         'start': None,
         'target_position_0': 0,
         'target_position_1': 0,
@@ -78,7 +83,9 @@ class MotionService(Node):
             self.emergency_stop_callback,
             10)
 
-        self.publisher = self.create_publisher(Bool, 'is_motion_complete', 10)
+        self.publisher_is_complete = self.create_publisher(Bool, 'is_motion_complete', 10)
+
+        self.publisher_pos = self.create_publisher(Position, 'robot_position', 10)
 
         self.get_logger().info("Motion Service has been started.")
 
@@ -126,10 +133,8 @@ class MotionService(Node):
         self.y_ = request.start_position.y
         self.r_ = request.start_position.r
 
-        self.target_0 = 0
-        self.target_1 = 0
-
-
+        self.pos_estimate_0 = 0
+        self.pos_estimate_1 = 0
 
         response.success = True
         time.sleep(0.2)
@@ -137,7 +142,26 @@ class MotionService(Node):
 
     def emergency_stop_callback(self, msg):
         if self.current_motion['in_motion']:
-            if msg.data and not self.current_motion['emergency'] and self.current_motion['target_position_0'] == self.current_motion['target_position_1']:
+
+            if self.current_motion['type'] == "forward":
+                pos = Position()
+                x_mm = (self.odrv0.axis0.encoder.pos_estimate - self.pos_estimate_0) / \
+                       self.calibration_config["linear"]["coef"]
+                y_mm = (self.odrv0.axis1.encoder.pos_estimate - self.pos_estimate_1) / \
+                       self.calibration_config["linear"]["coef"]
+
+                print(f"x_mm: {x_mm}, y_mm: {y_mm}")
+
+                new_x = x_mm * math.cos(math.radians(self.r_)) + self.x_
+                new_y = y_mm * math.sin(math.radians(self.r_)) + self.y_
+
+                pos.x = int(new_x)
+                pos.y = int(new_y)
+                pos.r = float(self.r_)
+                self.publisher_pos.publish(pos)
+
+            if msg.data and not self.current_motion['emergency'] and self.current_motion['target_position_0'] == \
+                    self.current_motion['target_position_1']:
                 self.setPID("emergency_stop.json")
                 self.setPIDGains("emergency_stop.json")
                 self.odrv0.axis0.controller.input_pos = self.odrv0.axis0.encoder.pos_estimate
@@ -155,13 +179,13 @@ class MotionService(Node):
         if not msg.data and self.current_motion['emergency']:
             time.sleep(1)
             pos_error_0 = abs(
-                self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
+                self.pos_estimate_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
             pos_error_1 = abs(
-                self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
+                self.pos_estimate_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
 
             pos_error_mm = ((pos_error_0 + pos_error_1) / 2) / self.calibration_config["linear"]["coef"]
-            self.target_0 = self.odrv0.axis0.encoder.pos_estimate
-            self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+            self.pos_estimate_0 = self.odrv0.axis0.encoder.pos_estimate
+            self.pos_estimate_1 = self.odrv0.axis1.encoder.pos_estimate
 
             print("pos_error_0", pos_error_0)
             print("pos_error_1", pos_error_1)
@@ -179,8 +203,8 @@ class MotionService(Node):
         self.get_logger().info(f"Cmd forward_callback received: {request}")
 
         self.motionForward(request.distance_mm)
-        self.x_ += round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
-        self.y_ += round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
+        self.x_target = self.x_ + round(request.distance_mm * math.cos(math.radians(self.r_)), 2)
+        self.y_target = self.y_ + round(request.distance_mm * math.sin(math.radians(self.r_)), 2)
 
         response.success = True
         return response
@@ -203,9 +227,10 @@ class MotionService(Node):
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
         # Calculate the finak angle
-        final_target_angle = 0
-        if request.r != -1:
-            final_target_angle = request.r
+
+        final_target_angle = request.r - target_angle
+        if request.r == -1:
+            final_target_angle = 0
 
         response.cmd = CmdPositionResult()
         response.cmd.rotation = float(target_angle)
@@ -251,15 +276,20 @@ class MotionService(Node):
     def motion_has_started(self, request, response):
         target_position_0 = request.target_position_0
         target_position_1 = request.target_position_1
-        evitement = request.evitement
+
+        if target_position_0 == target_position_1:
+            type = "forward"
+        else:
+            type = "rotation"
 
         self.get_logger().info("Motion has begun !");
 
         self.current_motion['in_motion'] = True
+        self.current_motion['type'] = type
         self.current_motion['start'] = time.time()
         self.current_motion['target_position_0'] = target_position_0
         self.current_motion['target_position_1'] = target_position_1
-        self.current_motion['evitement'] = evitement
+        self.current_motion['evitement'] = request.evitement
 
         response.success = True
         return response
@@ -271,9 +301,9 @@ class MotionService(Node):
             timeout = 5
 
             pos_error_0 = abs(
-                self.target_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
+                self.pos_estimate_0 + self.current_motion['target_position_0'] - self.odrv0.axis0.encoder.pos_estimate)
             pos_error_1 = abs(
-                self.target_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
+                self.pos_estimate_1 + self.current_motion['target_position_1'] - self.odrv0.axis1.encoder.pos_estimate)
 
             if (self.current_motion['target_position_0'] == 0 and self.current_motion['target_position_1'] == 0) or not \
                     self.current_motion['in_motion']:
@@ -296,17 +326,20 @@ class MotionService(Node):
             self.get_logger().info(
                 f"Motion started from {time.time() - self.current_motion['start']:.3f} seconds (pos_error_0:{pos_error_0}, pos_error_1:{pos_error_1}\n")
             self.get_logger().info(
-                f"self.target_0: {self.target_0}, self.current_motion['target_position_0']: {self.current_motion['target_position_0']}, axis0.encoder.pos_estimate: {self.odrv0.axis0.encoder.pos_estimate}")
+                f"self.pos_estimate_0: {self.pos_estimate_0}, self.current_motion['target_position_0']: {self.current_motion['target_position_0']}, axis0.encoder.pos_estimate: {self.odrv0.axis0.encoder.pos_estimate}")
             '''
 
         if motion_completed:
+            self.x_ = self.x_target
+            self.y_ = self.y_target
+
             # Publish True on the 'is_motion_complete' topic
             msg = Bool()
             msg.data = True
-            self.publisher.publish(msg)  # todo update name
+            self.publisher_is_complete.publish(msg)
 
-            self.target_0 = self.odrv0.axis0.encoder.pos_estimate
-            self.target_1 = self.odrv0.axis1.encoder.pos_estimate
+            self.pos_estimate_0 = self.odrv0.axis0.encoder.pos_estimate
+            self.pos_estimate_1 = self.odrv0.axis1.encoder.pos_estimate
 
             self.current_motion['in_motion'] = False
             self.current_motion['start'] = None
