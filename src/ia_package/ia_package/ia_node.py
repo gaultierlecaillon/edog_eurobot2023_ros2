@@ -88,10 +88,12 @@ class IANode(Node):
             self.destroy_subscription(self.subscriber_)  # Unsubscribe from the topic
 
     def calibrate(self, param):
+        service_name = "cmd_calibration_service"
+
         self.get_logger().info(f"[Exec Action] calibrate with param: {param}")
-        client = self.create_client(PositionBool, "cmd_calibration_service")
+        client = self.create_client(PositionBool, service_name)
         while not client.wait_for_service(0.25):
-            self.get_logger().warn("Waiting for Server to be available...")
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         int_param = [int(x) for x in self.config['startingPos'].split(",")]
         request = PositionBool.Request()
@@ -106,11 +108,13 @@ class IANode(Node):
         self.get_logger().info(f"[Publish] {request} to cmd_calibration_service")
 
     def grab(self, param):
+        service_name = "cmd_arm_service"
+
         self.get_logger().info(f"Performing grab action with param: {param}")
 
-        client = self.create_client(NullBool, "cmd_arm_service")
+        client = self.create_client(NullBool, service_name)
         while not client.wait_for_service(1):
-            self.get_logger().warn("Waiting for Server to be available...")
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         request = NullBool.Request()
         client.call_async(request)
@@ -122,7 +126,7 @@ class IANode(Node):
         self.get_logger().info(f"Performing 'unstack' action with param: {param}")
         client = self.create_client(NullBool, service_name)
         while not client.wait_for_service(1):
-            self.get_logger().warn("Waiting for Server to be available...")
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         request = NullBool.Request()
         future = client.call_async(request)
@@ -133,11 +137,13 @@ class IANode(Node):
         self.get_logger().info(f"[Publish] {request} to {service_name}")
 
     def drop(self, param):
+        service_name = "cmd_arm_drop_service"
+
         self.get_logger().info(f"Performing 'drop' action with param: {param}")
 
-        client = self.create_client(NullBool, "cmd_arm_drop_service")
+        client = self.create_client(NullBool, service_name)
         while not client.wait_for_service(1):
-            self.get_logger().warn("Waiting for Server to be available...")
+            self.get_logger().warn(f"Waiting for Server {service_name} to be available...")
 
         request = NullBool.Request()
         future = client.call_async(request)

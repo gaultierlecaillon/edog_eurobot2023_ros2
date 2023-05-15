@@ -198,16 +198,14 @@ class MotionService(Node):
         self.get_logger().info(f"Cmd goto_callback received: {request}")
 
         # Calculate the target_angle in degrees to reach the point(x,y)
-        target_angle = self.r_ + math.degrees(math.atan2(request.y - self.y_, request.x - self.x_))
-        self.get_logger().info(
-            f"\033[38;5;208m[target_angle] {target_angle}\033[0m\n")
+        target_angle = math.degrees(math.atan2(request.y - self.y_, request.x - self.x_)) - self.r_
 
         # Calculate the distance between A and B in mm
         increment_mm = math.sqrt((request.x - self.x_) ** 2 + (request.y - self.y_) ** 2)
         # Calculate the finak angle
         final_target_angle = 0
         if request.r != -1:
-            final_target_angle = request.r - target_angle
+            final_target_angle = request.r
 
         response.cmd = CmdPositionResult()
         response.cmd.rotation = float(target_angle)
@@ -215,10 +213,9 @@ class MotionService(Node):
         response.cmd.final_rotation = float(final_target_angle)
         return response
 
-    def motionRotate(self, rotation_to_do):
-
-        target_angle = self.r_ + rotation_to_do
-        increment_mm = rotation_to_do * float(self.calibration_config["rotation"]["coef"])
+    def motionRotate(self, target_angle):
+        rotation_to_do = self.r_ + target_angle
+        increment_mm = target_angle * float(self.calibration_config["rotation"]["coef"])
         increment_pos = float(self.calibration_config["linear"]["coef"]) * increment_mm
 
         self.get_logger().warn(f"[MotionRotate] target_angle={target_angle}°, rotation_to_do={rotation_to_do}°")
