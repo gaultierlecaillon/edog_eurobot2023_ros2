@@ -59,18 +59,7 @@ class ArmService(Node):
             "cmd_arm_unstack_service",
             self.arm_unstack_callback)
 
-        self.create_subscription(
-            Bool,
-            "is_motion_complete",
-            self.is_motion_complete_callback,
-            10)
-
         self.get_logger().info("Arm Service has been started.")
-
-    def is_motion_complete_callback(self, msg):
-        if msg.data:
-            print("ARRIVE")
-            self.motion_complete = True
 
     def initStepper(self):
         self.stepper_motor = RpiMotorLib.A4988Nema(self.direction, self.step, (21, 21, 21), "DRV8825")
@@ -290,7 +279,7 @@ class ArmService(Node):
         self.arm_position = step
 
     def move_arm_up(self):
-        step = 360
+        step = 370
         delta = step - self.arm_position
         self.stepper_motor.motor_go(delta < 0,  # True=Clockwise, False=Counter-Clockwise
                                     "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)

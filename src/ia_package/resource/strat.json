@@ -1,9 +1,9 @@
 {
   "type": "Strategy",
-  "name": "MatchBlue",
-  "description": "Main strategy for blue color",
-  "color": "blue",
-  "startingPos": "225,225,0",
+  "name": "MatchGreen",
+  "description": "Main strategy for green color",
+  "color": "green",
+  "startingPos": "250,1775,0",
   "strategy": [
     {
       "name": "Starting Blocks",
@@ -14,15 +14,15 @@
     {
       "name": "Opening",
       "actions": [
-        { "forward": "170" },
+        { "forward": "145" },
         { "grab": "" },
         { "forward": "180" },
         { "grab": "" },
-        { "goto": "1020,600,-1" },
+        { "goto": "1020,1400,-1" },
         { "grab": "" },
-        { "goto": "460,270,-90" },
+        { "goto": "290,1540,180" },
         { "unstack": "" },
-        { "goto": "1800,420,-1" }
+        { "goto": "1800,1540,-1" }
       ]
     }
   ]
