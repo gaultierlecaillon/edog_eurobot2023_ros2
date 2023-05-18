@@ -68,8 +68,8 @@ class ArmService(Node):
         self.get_logger().info("Arm Service has been started.")
 
     def is_motion_complete_callback(self, msg):
-        print("ARRIVE !")
         if msg.data:
+            print("ARRIVE")
             self.motion_complete = True
 
     def initStepper(self):
@@ -77,6 +77,7 @@ class ArmService(Node):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.EN_pin, GPIO.OUT)  # set enable pin as output
         GPIO.output(self.EN_pin, GPIO.HIGH)
+
 
     def cmd_forward(self, distance_mm):
         service_name = "cmd_forward_service"
@@ -208,6 +209,7 @@ class ArmService(Node):
         time.sleep(1.7)
         self.open_arm()
         self.move_arm_down()
+        self.cmd_forward(-forward)
 
         GPIO.output(self.EN_pin, GPIO.HIGH)
 
