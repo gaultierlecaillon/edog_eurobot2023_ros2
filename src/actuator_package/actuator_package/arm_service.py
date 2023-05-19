@@ -119,7 +119,7 @@ class ArmService(Node):
 
         # depose Pile 2 Cake 1
         self.cmd_forward(forward)  # instantaneous but wait for
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.2)
         self.move_arm(1)
@@ -136,7 +136,7 @@ class ArmService(Node):
         self.cmd_rotate(-angle)  # instantaneous but wait for
         time.sleep(1.5)
         self.cmd_forward(forward)  # instantaneous but wait for
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.2)
         self.move_arm(2)
@@ -149,23 +149,24 @@ class ArmService(Node):
         self.cmd_rotate(angle)  # instantaneous but wait for
 
         # depose Pile 2 Cake 2
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.move_arm(2)
         self.cmd_forward(forward)  # not wait for rotate, why?
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.2)
         self.close_arm()
         time.sleep(0.3)
         self.move_arm(3)
         self.cmd_forward(-forward)
-        time.sleep(1.7)
+        time.sleep(1.5)
+        self.move_arm(2)
         self.cmd_rotate(angle)
 
         # depose Pile 1 Cake 2 et 3
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.cmd_forward(forward)
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.2)
         self.move_arm(3)
@@ -174,13 +175,13 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)  # instant
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.cmd_rotate(-angle)
 
         # depose Pile 2 Cake 3
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.cmd_forward(forward)
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.slightlyArm()
         time.sleep(0.2)
         self.move_arm(3)
@@ -189,13 +190,13 @@ class ArmService(Node):
         time.sleep(0.3)
         self.move_arm_up()
         self.cmd_forward(-forward)
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.cmd_rotate(-angle)
 
         # depose Pile 3 Cake 3
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.cmd_forward(forward)
-        time.sleep(1.7)
+        time.sleep(1.5)
         self.open_arm()
         self.move_arm_down()
         self.cmd_forward(-forward)
@@ -279,7 +280,7 @@ class ArmService(Node):
         self.arm_position = step
 
     def move_arm_up(self):
-        step = 370
+        step = 380
         delta = step - self.arm_position
         self.stepper_motor.motor_go(delta < 0,  # True=Clockwise, False=Counter-Clockwise
                                     "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
